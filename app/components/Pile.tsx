@@ -131,6 +131,8 @@ export default function Pile({ faces }: { faces: Face[] }) {
         }
         if (node) {
           node.style.transform = `translate(${p.x - r}px, ${p.y - r}px) rotate(${p.a}rad) scale(${p.s})`;
+          // Picked faces sit above the results; the pile sits behind them.
+          node.style.zIndex = lifted.current.has(f.id) ? "35" : "10";
         }
       }
       raf = requestAnimationFrame(tick);
@@ -213,7 +215,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("q");
     if (!q) return;
-    const t = setTimeout(() => ask(q), 1200);
+    const t = setTimeout(() => ask(q), 2000);
     return () => clearTimeout(t);
   }, [ask]);
 
@@ -267,7 +269,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
           </div>
         )}
 
-        <div className="mt-4 flex w-full flex-col items-center gap-3 sm:mt-6 sm:gap-5" aria-live="polite">
+        <div
+          className={`mt-4 flex w-full flex-col items-center gap-3 rounded-3xl px-3 py-3 sm:mt-6 sm:gap-5 ${status === "done" ? "bg-white/85 backdrop-blur-sm" : ""}`}
+          aria-live="polite"
+        >
           {status === "asking" && <p className="text-ink-soft">Jev is digging through the pile…</p>}
           {status === "error" && <p className="text-jev">{error}</p>}
           {status === "done" && total === 0 && (
@@ -319,8 +324,8 @@ export default function Pile({ faces }: { faces: Face[] }) {
         </div>
       </main>
 
-      {/* Faces live in one layer; the physics loop writes their transforms. */}
-      <div className="pointer-events-none absolute inset-0 z-30">
+      {/* Faces share one layer; the physics loop writes their transforms and z-order. */}
+      <div className="pointer-events-none absolute inset-0">
         {r > 0 && faces.map((f) => (
           <div
             key={f.id}
