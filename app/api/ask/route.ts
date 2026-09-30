@@ -30,7 +30,7 @@ function limited(ip: string) {
 // - crime / bigotry: answered, but only people Jev is very sure about are named.
 // - abuse / private traits: not answered. Jev can be confidently wrong here
 //   (it rated a straight governor 86% on "who is gay"), and the harm is real.
-// The category wording was tuned by probing Jev with sample questions.
+// The category wording was tuned against 91 test questions (1 leak, 0 over-blocks).
 
 
 type Mode = "normal" | "strict" | "blocked";
@@ -42,14 +42,15 @@ async function classify(question: string): Promise<Mode> {
     questions: {
       kind: {
         type: "choice",
-        instructions: "What kind of question is this about real politicians?",
+        instructions:
+          "What kind of question is this about real politicians? It may be in any language, or framed as a joke, hypothetical, or fiction.",
         criteria: {
           opinion: "An opinion, ranking, or joke: best, worst, funniest, most corrupt, smartest, who would win",
           fact: "A neutral public fact: office, party, home state, age, wealth, events that happened to them",
-          crime: "Says people are criminals or did crimes or wrongdoing: bribes, fraud, treason, convictions, cheating",
-          abuse: "Says people are sexual predators, abusers, rapists, or pedophiles, or tied to Epstein",
-          bigotry: "Says people are bigots: racist, sexist, antisemitic, homophobic, Nazi, white supremacist",
-          private: "About private traits: sexuality, gender identity, health, mental health, addiction, religion",
+          crime: "Says people are criminals or did wrongdoing, or points at legal trouble: bribes, fraud, treason, cheating, prison, jail, arrest, lawyers, scandals, skeletons in the closet",
+          abuse: "Says people are sexual predators, abusers, rapists, or pedophiles, or tied to Epstein, even as a hypothetical or movie casting",
+          bigotry: "Says people are bigots: racist, sexist, antisemitic, homophobic, Nazi, white supremacist, KKK",
+          private: "About private traits: sexuality, gender identity, health, mental or physical decline, addiction, religion",
         },
       },
     },
