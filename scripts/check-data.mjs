@@ -1,5 +1,6 @@
 // Validates data/politicians.json: parses, 100 unique ids, all image URLs return HTTP 200.
 import fs from 'fs';
+import { execFileSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -25,15 +26,20 @@ for (const p of data) {
 }
 console.log(`unique ids: ${ids.size}`);
 
-// Wikimedia rate-limits bursts (HTTP 429 + Retry-After), so go one at a time and back off.
+// Uses curl -sI (IPv4) so results match the manual check. Wikimedia rate-limits per client IP
+// (HTTP 429 + Retry-After), so go one at a time and back off when told to.
+function curlHead(url) {
+  const out = execFileSync('curl', ['-4', '-sI', '-m', '20', '-A', UA, url], { encoding: 'utf8' });
+  const status = Number((out.match(/^HTTP\/\S+ (\d+)/m) || [])[1]) || 0;
+  const retry = Number((out.match(/^retry-after: *(\d+)/im) || [])[1]) || 0;
+  return { status, retry };
+}
 async function head(url) {
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     let r;
-    try {
-      r = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': UA }, redirect: 'follow', signal: AbortSignal.timeout(20000) });
-    } catch (e) { if (i === 5) return `error ${e.message}`; continue; }
+    try { r = curlHead(url); } catch (e) { if (i === 7) return `error ${e.message}`; continue; }
     if (r.status !== 429) return r.status;
-    const wait = Math.min(Number(r.headers.get('retry-after')) || 5, 700);
+    const wait = Math.min(Math.max(r.retry, 20), 700);
     console.log(`  429 on ${url.split('/').pop()}, waiting ${wait}s`);
     await new Promise((res) => setTimeout(res, wait * 1000));
   }
@@ -42,8 +48,9 @@ async function head(url) {
 let ok = 0;
 for (const p of data) {
   const status = await head(p.image);
-  if (status === 200) ok++; else errors.push(`${p.id}: image HTTP ${status} ${p.image}`);
-  await new Promise((res) => setTimeout(res, 700));
+  if (status === 200) ok++; else console.log(`  ${p.id}: HTTP ${status}`);
+  if (status !== 200) errors.push(`${p.id}: image HTTP ${status} ${p.image}`);
+  await new Promise((res) => setTimeout(res, 500));
 }
 console.log(`image URLs returning 200: ${ok}/${data.length}`);
 

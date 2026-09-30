@@ -71,7 +71,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
     const el = stage.current!;
     if (!r) return;
     const all = bodies.current;
-    const e = Matter.Engine.create({ gravity: { x: 0, y: 1.1 } });
+    const e = Matter.Engine.create({ gravity: { x: 0, y: 1 }, enableSleeping: true });
     engine.current = e;
 
     // Oversized walls so a resize only needs a reposition.
@@ -90,12 +90,12 @@ export default function Pile({ faces }: { faces: Face[] }) {
     Matter.Composite.add(e.world, [floor, left, right]);
 
     const w = el.clientWidth;
-    faces.forEach((f, i) => {
+    faces.forEach((f) => {
       const b = Matter.Bodies.circle(
         r + Math.random() * (w - 2 * r),
-        -r * 2 - i * (r * 0.9),
+        -r - Math.random() * el.clientHeight * 0.9,
         r,
-        { restitution: 0.25, friction: 0.4, density: 0.002 },
+        { restitution: 0, friction: 0.8, frictionAir: 0.02, density: 0.002, sleepThreshold: 30 },
       );
       bodies.current.set(f.id, b);
       pos.current.set(f.id, { x: b.position.x, y: b.position.y, a: 0, s: 1 });
@@ -108,7 +108,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
       // Time-based so slow devices catch up instead of crawling.
       const dt = Math.min(now - last, 100);
       last = now;
-      for (let left = dt; left > 0; left -= 16.7) Matter.Engine.update(e, Math.min(left, 16.7));
+      for (let left = dt; left > 0; left -= 16.66) Matter.Engine.update(e, Math.min(left, 16.66));
       const k = 1 - Math.pow(1 - 0.16, dt / 16.7);
       const kPile = 1 - Math.pow(1 - 0.2, dt / 16.7);
       const box = el.getBoundingClientRect();
@@ -163,7 +163,8 @@ export default function Pile({ faces }: { faces: Face[] }) {
       const b = bodies.current.get(id)!;
       const p = pos.current.get(id)!;
       Matter.Body.setPosition(b, { x: p.x, y: p.y });
-      Matter.Body.setVelocity(b, { x: (Math.random() - 0.5) * 6, y: 2 });
+      Matter.Body.setVelocity(b, { x: 0, y: 0 });
+      Matter.Sleeping.set(b, false);
       Matter.Composite.add(e.world, b);
     }
     for (const id of next) {
@@ -171,17 +172,6 @@ export default function Pile({ faces }: { faces: Face[] }) {
     }
     lifted.current = next;
   }, [tiers]);
-
-  // Give the pile a nudge so it looks like Jev is rummaging through it.
-  const rummage = useCallback(() => {
-    for (const [id, b] of bodies.current) {
-      if (lifted.current.has(id)) continue;
-      Matter.Body.setVelocity(b, {
-        x: (Math.random() - 0.5) * 4,
-        y: -2 - Math.random() * 5,
-      });
-    }
-  }, []);
 
   const ask = useCallback(
     async (q: string) => {
@@ -192,7 +182,6 @@ export default function Pile({ faces }: { faces: Face[] }) {
       setStatus("asking");
       setError("");
       setTiers([]);
-      rummage();
       const url = new URL(window.location.href);
       url.searchParams.set("q", trimmed);
       window.history.replaceState(null, "", url);
@@ -212,8 +201,20 @@ export default function Pile({ faces }: { faces: Face[] }) {
         setStatus("error");
       }
     },
-    [rummage],
+    [],
   );
+
+  const inputEl = useRef<HTMLInputElement>(null);
+  const clear = useCallback(() => {
+    setQuestion("");
+    setAsked("");
+    setTiers([]);
+    setScores({});
+    setError("");
+    setStatus("idle");
+    window.history.replaceState(null, "", window.location.pathname);
+    inputEl.current?.focus();
+  }, []);
 
   // Shared links (?q=...) ask on load, once the pile has landed.
   useEffect(() => {
@@ -249,14 +250,33 @@ export default function Pile({ faces }: { faces: Face[] }) {
             ask(question);
           }}
         >
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            maxLength={140}
-            placeholder="Who's the most corrupt?"
-            aria-label="Ask Jev about politicians"
-            className="w-full rounded-2xl border border-line bg-white px-5 py-4 text-lg shadow-[0_2px_20px_rgba(0,0,0,0.06)] outline-none placeholder:text-ink-faint focus:border-ink-faint"
-          />
+          <div className="relative">
+            <input
+              ref={inputEl}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") clear();
+              }}
+              maxLength={140}
+              placeholder="Who's the most corrupt?"
+              aria-label="Ask Jev about politicians"
+              className="w-full rounded-2xl border border-line bg-white py-4 pl-5 pr-14 text-lg shadow-[0_2px_20px_rgba(0,0,0,0.06)] outline-none placeholder:text-ink-faint focus:border-ink-faint"
+            />
+            {(question || status !== "idle") && (
+              <button
+                type="button"
+                onClick={clear}
+                aria-label="Clear and ask something else"
+                title="Clear (Esc)"
+                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-line/70 text-ink-soft hover:bg-line hover:text-ink"
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
         </form>
 
         {status === "idle" && (
