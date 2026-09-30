@@ -80,9 +80,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
     const floor = Matter.Bodies.rectangle(0, 0, 20000, 100, opts);
     const left = Matter.Bodies.rectangle(0, 0, 100, 20000, opts);
     const right = Matter.Bodies.rectangle(0, 0, 100, 20000, opts);
+    const h = el.clientHeight;
     const placeWalls = () => {
       const w = el.clientWidth;
-      const h = el.clientHeight;
       Matter.Body.setPosition(floor, { x: w / 2, y: h + 50 });
       Matter.Body.setPosition(left, { x: -50, y: h - 10000 });
       Matter.Body.setPosition(right, { x: w + 50, y: h - 10000 });
@@ -103,13 +103,21 @@ export default function Pile({ faces }: { faces: Face[] }) {
     });
     Matter.Composite.add(e.world, [...bodies.current.values()]);
 
+    // Fixed physics step. Matter's integrator jitters when the step size
+    // changes frame to frame (e.g. 120Hz phones), so bank time and step
+    // exactly 1/60s at a time.
+    const STEP = 1000 / 60;
     let raf = 0;
     let last = performance.now();
+    let bank = 0;
     const tick = (now: number) => {
-      // Time-based so slow devices catch up instead of crawling.
       const dt = Math.min(now - last, 100);
       last = now;
-      for (let left = dt; left > 0; left -= 16.66) Matter.Engine.update(e, Math.min(left, 16.66));
+      bank += dt;
+      while (bank >= STEP) {
+        Matter.Engine.update(e, STEP);
+        bank -= STEP;
+      }
       const k = 1 - Math.pow(1 - 0.16, dt / 16.7);
       const kPile = 1 - Math.pow(1 - 0.2, dt / 16.7);
       const box = el.getBoundingClientRect();
@@ -144,7 +152,14 @@ export default function Pile({ faces }: { faces: Face[] }) {
     };
     raf = requestAnimationFrame(tick);
 
-    const onResize = () => placeWalls();
+    // Only a width change moves the walls. Height changes on phones come from
+    // the keyboard or the address bar, and shouldn't make the pile jump.
+    let lastWidth = el.clientWidth;
+    const onResize = () => {
+      if (Math.abs(el.clientWidth - lastWidth) < 40) return;
+      lastWidth = el.clientWidth;
+      placeWalls();
+    };
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(raf);
@@ -173,6 +188,16 @@ export default function Pile({ faces }: { faces: Face[] }) {
     }
     lifted.current = next;
   }, [tiers]);
+
+  // Tapping a face in the pile makes it hop. That's the only bounce there is.
+  const hop = useCallback((id: string) => {
+    if (lifted.current.has(id)) return;
+    const b = bodies.current.get(id);
+    if (!b) return;
+    Matter.Sleeping.set(b, false);
+    Matter.Body.setVelocity(b, { x: (Math.random() - 0.5) * 3, y: -8 });
+    Matter.Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.2);
+  }, []);
 
   const ask = useCallback(
     async (q: string) => {
@@ -235,7 +260,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const hovered = hover ? byId.get(hover) : null;
 
   return (
-    <div ref={stage} className="relative h-dvh w-full overflow-hidden select-none">
+    <div ref={stage} className="relative h-svh w-full overflow-hidden select-none">
       <a
         href="/credits"
         className="absolute right-3 top-3 z-40 text-xs text-ink-faint hover:text-ink"
@@ -380,6 +405,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
               else faceEls.current.delete(f.id);
             }}
             onPointerEnter={() => setHover(f.id)}
+            onPointerDown={() => {
+              setHover(f.id);
+              hop(f.id);
+            }}
             onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
             className="pointer-events-auto absolute left-0 top-0 overflow-hidden rounded-full bg-line shadow-[0_1px_4px_rgba(0,0,0,0.25)] ring-2 ring-white will-change-transform"
             style={{
