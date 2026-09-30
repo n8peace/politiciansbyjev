@@ -105,8 +105,12 @@ export default function Pile({ faces }: { faces: Face[] }) {
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
-      Matter.Engine.update(e, Math.min(now - last, 32));
+      // Time-based so slow devices catch up instead of crawling.
+      const dt = Math.min(now - last, 100);
       last = now;
+      for (let left = dt; left > 0; left -= 16.7) Matter.Engine.update(e, Math.min(left, 16.7));
+      const k = 1 - Math.pow(1 - 0.16, dt / 16.7);
+      const kPile = 1 - Math.pow(1 - 0.2, dt / 16.7);
       const box = el.getBoundingClientRect();
       for (const f of faces) {
         const p = pos.current.get(f.id)!;
@@ -117,17 +121,17 @@ export default function Pile({ faces }: { faces: Face[] }) {
             const s = slot.getBoundingClientRect();
             const tx = s.left - box.left + s.width / 2;
             const ty = s.top - box.top + s.width / 2;
-            p.x += (tx - p.x) * 0.16;
-            p.y += (ty - p.y) * 0.16;
-            p.a += (0 - p.a) * 0.16;
-            p.s += (s.width / (2 * r) - p.s) * 0.16;
+            p.x += (tx - p.x) * k;
+            p.y += (ty - p.y) * k;
+            p.a += (0 - p.a) * k;
+            p.s += (s.width / (2 * r) - p.s) * k;
           }
         } else {
           const b = bodies.current.get(f.id)!;
           p.x = b.position.x;
           p.y = b.position.y;
           p.a = b.angle;
-          p.s += (1 - p.s) * 0.2;
+          p.s += (1 - p.s) * kPile;
         }
         if (node) {
           node.style.transform = `translate(${p.x - r}px, ${p.y - r}px) rotate(${p.a}rad) scale(${p.s})`;
