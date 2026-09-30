@@ -45,6 +45,16 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const bodies = useRef(new Map<string, Matter.Body>());
   const pos = useRef(new Map<string, Pos>());
   const lifted = useRef(new Set<string>());
+  // The face being dragged, where the pointer is, and how fast it's moving.
+  const drag = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    t: number;
+    moved: number;
+  } | null>(null);
   const engine = useRef<Matter.Engine | null>(null);
   const [r, setR] = useState(0);
   const [narrow, setNarrow] = useState(false);
@@ -115,6 +125,16 @@ export default function Pile({ faces }: { faces: Face[] }) {
       last = now;
       bank += dt;
       while (bank >= STEP) {
+        const d = drag.current;
+        if (d) {
+          // Pull the held face toward the pointer by velocity, so it still
+          // shoves the faces it runs into.
+          const b = bodies.current.get(d.id)!;
+          Matter.Body.setVelocity(b, {
+            x: (d.x - b.position.x) * 0.35,
+            y: (d.y - b.position.y) * 0.35,
+          });
+        }
         Matter.Engine.update(e, STEP);
         bank -= STEP;
       }
@@ -199,6 +219,79 @@ export default function Pile({ faces }: { faces: Face[] }) {
     Matter.Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.2);
   }, []);
 
+  // Grab a face: drag it around, fling it on release, or tap it to hop.
+  const local = (e: React.PointerEvent) => {
+    const box = stage.current!.getBoundingClientRect();
+    return { x: e.clientX - box.left, y: e.clientY - box.top };
+  };
+
+  const grab = useCallback((e: React.PointerEvent<HTMLDivElement>, id: string) => {
+    setHover(id);
+    if (lifted.current.has(id)) return;
+    const b = bodies.current.get(id);
+    if (!b) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    Matter.Sleeping.set(b, false);
+    const { x, y } = local(e);
+    drag.current = { id, x, y, vx: 0, vy: 0, t: performance.now(), moved: 0 };
+  }, []);
+
+  const moveDrag = useCallback((e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const { x, y } = local(e);
+    const now = performance.now();
+    const dt = Math.max(now - d.t, 1);
+    // Smoothed pointer speed in px per physics step, used for the throw.
+    d.vx = d.vx * 0.5 + ((x - d.x) / dt) * (1000 / 60) * 0.5;
+    d.vy = d.vy * 0.5 + ((y - d.y) / dt) * (1000 / 60) * 0.5;
+    d.moved += Math.hypot(x - d.x, y - d.y);
+    d.x = x;
+    d.y = y;
+    d.t = now;
+  }, []);
+
+  const release = useCallback(() => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    if (d.moved < 6) {
+      hop(d.id);
+      return;
+    }
+    const b = bodies.current.get(d.id)!;
+    const clamp = (v: number) => Math.max(-28, Math.min(28, v));
+    Matter.Body.setVelocity(b, { x: clamp(d.vx), y: clamp(d.vy) });
+  }, [hop]);
+
+  // Desktop: sweeping the mouse through the pile pushes faces aside.
+  const lastMouse = useRef<{ x: number; y: number } | null>(null);
+  const nudge = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || drag.current) return;
+    const { x, y } = local(e);
+    const prev = lastMouse.current;
+    lastMouse.current = { x, y };
+    if (!prev) return;
+    const mx = x - prev.x;
+    const my = y - prev.y;
+    const speed = Math.hypot(mx, my);
+    if (speed < 2) return;
+    const reach = r * 1.6;
+    for (const [id, b] of bodies.current) {
+      if (lifted.current.has(id)) continue;
+      const dx = b.position.x - x;
+      const dy = b.position.y - y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > reach) continue;
+      const push = Math.min(speed, 30) * 0.12 * (1 - dist / reach);
+      Matter.Sleeping.set(b, false);
+      Matter.Body.setVelocity(b, {
+        x: b.velocity.x + (mx / speed) * push + (dx / (dist || 1)) * push * 0.5,
+        y: b.velocity.y + (my / speed) * push + (dy / (dist || 1)) * push * 0.5 - push * 0.3,
+      });
+    }
+  }, [r]);
+
   const ask = useCallback(
     async (q: string) => {
       const trimmed = q.trim();
@@ -260,7 +353,11 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const hovered = hover ? byId.get(hover) : null;
 
   return (
-    <div ref={stage} className="relative h-svh w-full overflow-hidden select-none">
+    <div
+      ref={stage}
+      onPointerMove={nudge}
+      className="relative h-svh w-full overflow-hidden select-none"
+    >
       <a
         href="/credits"
         className="absolute right-3 top-3 z-40 text-xs text-ink-faint hover:text-ink"
@@ -405,12 +502,12 @@ export default function Pile({ faces }: { faces: Face[] }) {
               else faceEls.current.delete(f.id);
             }}
             onPointerEnter={() => setHover(f.id)}
-            onPointerDown={() => {
-              setHover(f.id);
-              hop(f.id);
-            }}
+            onPointerDown={(e) => grab(e, f.id)}
+            onPointerMove={moveDrag}
+            onPointerUp={release}
+            onPointerCancel={release}
             onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
-            className="pointer-events-auto absolute left-0 top-0 overflow-hidden rounded-full bg-line shadow-[0_1px_4px_rgba(0,0,0,0.25)] ring-2 ring-white will-change-transform"
+            className="pointer-events-auto absolute left-0 top-0 cursor-grab touch-none overflow-hidden rounded-full active:cursor-grabbing bg-line shadow-[0_1px_4px_rgba(0,0,0,0.25)] ring-2 ring-white will-change-transform"
             style={{
               width: r * 2,
               height: r * 2,
