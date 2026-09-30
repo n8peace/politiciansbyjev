@@ -16,7 +16,7 @@ const EXAMPLES = [
 ];
 
 type Pos = { x: number; y: number; a: number; s: number };
-type Status = "idle" | "asking" | "done" | "error";
+type Status = "idle" | "asking" | "done" | "blocked" | "error";
 
 // Size faces so the settled pile fills about a quarter of the screen.
 function radiusFor(width: number, height: number) {
@@ -193,6 +193,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Jev didn't answer.");
+        if (data.blocked) {
+          setStatus("blocked");
+          return;
+        }
         setScores(data.scores);
         setTiers(groupScores(data.scores));
         setStatus("done");
@@ -299,6 +303,12 @@ export default function Pile({ faces }: { faces: Face[] }) {
         >
           {status === "asking" && <p className="text-ink-soft">Jev is digging through the pile…</p>}
           {status === "error" && <p className="text-jev">{error}</p>}
+          {status === "blocked" && (
+            <p className="max-w-md text-center text-ink-soft">
+              <span className="font-semibold text-ink">Jev won&apos;t touch that one.</span> It
+              doesn&apos;t accuse real people of crimes, abuse, or bigotry. Ask it something else.
+            </p>
+          )}
           {status === "done" && total === 0 && (
             <p className="text-center text-ink-soft">
               Jev says: <span className="font-semibold text-ink">nobody.</span>
@@ -341,7 +351,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
           ))}
           {status === "done" && (
             <p className="text-center text-xs text-ink-faint">
-              &ldquo;{asked}&rdquo; · picked by Jev, an AI, not by us. Mad about it?{" "}
+              &ldquo;{asked}&rdquo; · Jev’s opinion, not fact. Mad about it?{" "}
               <span className="font-semibold text-jev">Blame Jev.</span>
             </p>
           )}
