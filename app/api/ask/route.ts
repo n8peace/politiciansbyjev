@@ -1,5 +1,6 @@
 import { experimental_evaluate as evaluate } from "ai";
 import { politicians } from "@/lib/politicians";
+import { STRICT } from "@/lib/tiers";
 
 export const maxDuration = 30;
 
@@ -8,7 +9,9 @@ const CHUNK = 25; // questions per Jev call; chunks run in parallel
 
 // Per-instance guards. Not bulletproof, but they stop casual hammering and
 // make repeat questions free.
-type Answer = { scores: Record<string, number> } | { blocked: true };
+type Answer =
+  | { mode: "normal" | "strict"; scores: Record<string, number> }
+  | { blocked: true };
 const cache = new Map<string, Answer>();
 const hits = new Map<string, number[]>();
 const LIMIT = 20;
@@ -22,33 +25,41 @@ function limited(ip: string) {
   return recent.length > LIMIT;
 }
 
-// Jev screens its own questions. Opinions ("most corrupt", "worst") are fair
-// game; accusing real people of crimes, abuse, bigotry, or private traits is not.
-// Thresholds were set by probing Jev with sample questions.
-const ACCUSATION = 0.65;
-const BIGOTRY = 0.5;
+// Jev sorts each question before answering it.
+// - opinion / fact: answered normally.
+// - crime / bigotry: answered, but only people Jev is very sure about are named.
+// - abuse / private traits: not answered. Jev can be confidently wrong here
+//   (it rated a straight governor 86% on "who is gay"), and the harm is real.
+// The category wording was tuned by probing Jev with sample questions.
 
-async function screen(question: string) {
+
+type Mode = "normal" | "strict" | "blocked";
+
+async function classify(question: string): Promise<Mode> {
   const r = await evaluate({
     model: "typesafe-ai/jev",
     state: { question },
     questions: {
-      accusation: {
-        type: "boolean",
-        instructions:
-          "Does this question ask which real people committed a crime, sexual misconduct, abuse, or another specific wrongful act, or which have a private trait like sexuality or a medical condition?",
-      },
-      bigotry: {
-        type: "boolean",
-        instructions:
-          "Does this question ask which real people are bigots or hold hateful views, such as racist, sexist, antisemitic, or Nazi?",
+      kind: {
+        type: "choice",
+        instructions: "What kind of question is this about real politicians?",
+        criteria: {
+          opinion: "An opinion, ranking, or joke: best, worst, funniest, most corrupt, smartest, who would win",
+          fact: "A neutral public fact: office, party, home state, age, wealth, events that happened to them",
+          crime: "Says people are criminals or did crimes or wrongdoing: bribes, fraud, treason, convictions, cheating",
+          abuse: "Says people are sexual predators, abusers, rapists, or pedophiles, or tied to Epstein",
+          bigotry: "Says people are bigots: racist, sexist, antisemitic, homophobic, Nazi, white supremacist",
+          private: "About private traits: sexuality, gender identity, health, mental health, addiction, religion",
+        },
       },
     },
   });
-  return (
-    r.answers.accusation.probability >= ACCUSATION ||
-    r.answers.bigotry.probability >= BIGOTRY
-  );
+  const k = r.answers.kind;
+  const p = k.probabilities ?? { [k.choice]: 1 };
+  const get = (c: string) => p[c as keyof typeof p] ?? 0;
+  if (get("abuse") + get("private") >= 0.5) return "blocked";
+  if (get("crime") + get("bigotry") + get("abuse") + get("private") >= 0.5) return "strict";
+  return "normal";
 }
 
 async function score(question: string) {
@@ -105,8 +116,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const [blocked, scores] = await Promise.all([screen(question), score(question)]);
-    const answer: Answer = blocked ? { blocked: true } : { scores };
+    const [mode, scores] = await Promise.all([classify(question), score(question)]);
+    // In strict mode, never send scores below the bar, so hovering a face in
+    // the pile can't reveal a low-confidence accusation either.
+    const answer: Answer =
+      mode === "blocked"
+        ? { blocked: true }
+        : mode === "strict"
+          ? { mode, scores: Object.fromEntries(Object.entries(scores).filter(([, v]) => v >= STRICT)) }
+          : { mode, scores };
     if (cache.size > 1000) cache.delete(cache.keys().next().value!);
     cache.set(key, answer);
     return Response.json(answer);

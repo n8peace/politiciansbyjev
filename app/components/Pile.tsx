@@ -55,6 +55,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
+  const [strict, setStrict] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
 
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
@@ -197,8 +198,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
           setStatus("blocked");
           return;
         }
+        const isStrict = data.mode === "strict";
+        setStrict(isStrict);
         setScores(data.scores);
-        setTiers(groupScores(data.scores));
+        setTiers(groupScores(data.scores, isStrict));
         setStatus("done");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Jev didn't answer.");
@@ -306,12 +309,21 @@ export default function Pile({ faces }: { faces: Face[] }) {
           {status === "blocked" && (
             <p className="max-w-md text-center text-ink-soft">
               <span className="font-semibold text-ink">Jev won&apos;t touch that one.</span> It
-              doesn&apos;t accuse real people of crimes, abuse, or bigotry. Ask it something else.
+              doesn&apos;t guess about abuse or people&apos;s private lives. Ask it something else.
             </p>
           )}
           {status === "done" && total === 0 && (
-            <p className="text-center text-ink-soft">
-              Jev says: <span className="font-semibold text-ink">nobody.</span>
+            <p className="max-w-md text-center text-ink-soft">
+              {strict ? (
+                <>
+                  <span className="font-semibold text-ink">Jev isn&apos;t sure enough to name anyone.</span>{" "}
+                  For accusations, it only answers when it&apos;s 90% sure.
+                </>
+              ) : (
+                <>
+                  Jev says: <span className="font-semibold text-ink">nobody.</span>
+                </>
+              )}
             </p>
           )}
           {tiers.map((t) => (
