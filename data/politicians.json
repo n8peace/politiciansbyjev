@@ -885,7 +885,8 @@
     "wikipedia": "https://en.wikipedia.org/wiki/Pete_Buttigieg",
     "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Pete_Buttigieg%2C_Secretary_of_Transportation.jpg/500px-Pete_Buttigieg%2C_Secretary_of_Transportation.jpg",
     "imageLicense": "Public domain (US federal gov work)",
-    "imageCredit": "United States Department of Transportation"
+    "imageCredit": "United States Department of Transportation",
+    "publiclyOut": true
   },
   {
     "id": "eric-adams",

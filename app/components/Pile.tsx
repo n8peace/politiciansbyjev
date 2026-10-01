@@ -316,10 +316,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
           setStatus("blocked");
           return;
         }
-        const isStrict = data.mode === "strict";
-        setStrict(isStrict);
+        setStrict(data.mode === "strict");
         setScores(data.scores);
-        setTiers(groupScores(data.scores, isStrict));
+        setTiers(groupScores(data.scores, data.mode));
         setStatus("done");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Jev didn't answer.");

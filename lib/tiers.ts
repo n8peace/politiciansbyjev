@@ -17,9 +17,16 @@ export const GUESS_COUNT = 3;
 // with no "thinks so" or "best guess" groups.
 export const STRICT = 0.9;
 
-export function groupScores(scores: Record<string, number>, strict = false): Tier[] {
+export type Mode = "normal" | "strict" | "out";
+
+export function groupScores(scores: Record<string, number>, mode: Mode = "normal"): Tier[] {
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  if (strict) {
+  if (mode === "out") {
+    // The server already limited these to people who are publicly out.
+    const ids = ranked.map(([id]) => id);
+    return ids.length ? [{ key: "sure", label: "Publicly out", ids }] : [];
+  }
+  if (mode === "strict") {
     const ids = ranked.filter(([, p]) => p >= STRICT).map(([id]) => id);
     return ids.length ? [{ key: "sure", label: "Jev is very sure", ids }] : [];
   }

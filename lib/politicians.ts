@@ -11,6 +11,8 @@ export type Politician = {
   image: string;
   imageLicense: string;
   imageCredit: string;
+  // Has publicly said they are LGBTQ. "Openly gay" questions answer only from these.
+  publiclyOut?: boolean;
 };
 
 export const politicians = data as Politician[];

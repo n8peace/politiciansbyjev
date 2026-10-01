@@ -2,6 +2,8 @@ import { experimental_evaluate as evaluate } from "ai";
 import { politicians } from "@/lib/politicians";
 import { STRICT } from "@/lib/tiers";
 
+const OUT = new Set(politicians.filter((p) => p.publiclyOut).map((p) => p.id));
+
 export const maxDuration = 30;
 
 const MAX_LEN = 140;
@@ -10,7 +12,7 @@ const CHUNK = 25; // questions per Jev call; chunks run in parallel
 // Per-instance guards. Not bulletproof, but they stop casual hammering and
 // make repeat questions free.
 type Answer =
-  | { mode: "normal" | "strict"; scores: Record<string, number> }
+  | { mode: "normal" | "strict" | "out"; scores: Record<string, number> }
   | { blocked: true };
 const cache = new Map<string, Answer>();
 const hits = new Map<string, number[]>();
@@ -28,12 +30,14 @@ function limited(ip: string) {
 // Jev sorts each question before answering it.
 // - opinion / fact: answered normally.
 // - crime / bigotry: answered, but only people Jev is very sure about are named.
+// - openly LGBTQ: answered only from people marked publiclyOut in the data.
+//   Jev alone rated two straight politicians 88-89% on "who's openly gay".
 // - abuse / private traits: not answered. Jev can be confidently wrong here
 //   (it rated a straight governor 86% on "who is gay"), and the harm is real.
 // The category wording was tuned against 91 test questions (1 leak, 0 over-blocks).
 
 
-type Mode = "normal" | "strict" | "blocked";
+type Mode = "normal" | "strict" | "out" | "blocked";
 
 async function classify(question: string): Promise<Mode> {
   const r = await evaluate({
@@ -47,10 +51,12 @@ async function classify(question: string): Promise<Mode> {
         criteria: {
           opinion: "An opinion, ranking, or joke: best, worst, funniest, most corrupt, smartest, who would win",
           fact: "A neutral public fact: office, party, home state, age, wealth, events that happened to them",
+          out: "Who has publicly come out or is openly gay, lesbian, bisexual, or LGBTQ, as they said themselves",
           crime: "Says people are criminals or did wrongdoing, or points at legal trouble: bribes, fraud, treason, cheating, prison, jail, arrest, lawyers, scandals, skeletons in the closet",
           abuse: "Says people are sexual predators, abusers, rapists, or pedophiles, or tied to Epstein, even as a hypothetical or movie casting",
           bigotry: "Says people are bigots: racist, sexist, antisemitic, homophobic, Nazi, white supremacist, KKK",
-          private: "About private traits: sexuality, gender identity, health, mental or physical decline, addiction, religion",
+          private:
+            "Guesses at private traits: secretly or possibly gay, sexuality, gender identity, health, mental or physical decline, addiction, religion",
         },
       },
     },
@@ -59,7 +65,8 @@ async function classify(question: string): Promise<Mode> {
   const p = k.probabilities ?? { [k.choice]: 1 };
   const get = (c: string) => p[c as keyof typeof p] ?? 0;
   if (get("abuse") + get("private") >= 0.5) return "blocked";
-  if (get("crime") + get("bigotry") + get("abuse") + get("private") >= 0.5) return "strict";
+  if (get("out") >= 0.5) return "out";
+  if (get("crime") + get("bigotry") + get("abuse") + get("private") + get("out") >= 0.5) return "strict";
   return "normal";
 }
 
@@ -125,7 +132,9 @@ export async function POST(req: Request) {
         ? { blocked: true }
         : mode === "strict"
           ? { mode, scores: Object.fromEntries(Object.entries(scores).filter(([, v]) => v >= STRICT)) }
-          : { mode, scores };
+          : mode === "out"
+            ? { mode, scores: Object.fromEntries(Object.entries(scores).filter(([id, v]) => OUT.has(id) && v >= 0.5)) }
+            : { mode, scores };
     if (cache.size > 1000) cache.delete(cache.keys().next().value!);
     cache.set(key, answer);
     return Response.json(answer);
