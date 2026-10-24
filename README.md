@@ -19,3 +19,7 @@ npm run dev
 ```
 
 AI Gateway auth uses the Vercel OIDC token, so no API key is needed.
+
+## License
+
+Code: MIT (see `LICENSE`). Portraits: each under its own license, credited in [`CREDITS.md`](./CREDITS.md).
