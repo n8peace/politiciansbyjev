@@ -287,7 +287,8 @@ export default function Pile({ faces }: { faces: Face[] }) {
       }
       if (!landed.current) {
         let resting = 0;
-        for (const b of all.values()) if (b.isSleeping || b.speed < 0.3) resting++;
+        // Faces start at rest above the screen, so only count ones that fell in.
+        for (const b of all.values()) if (b.position.y > 0 && (b.isSleeping || b.speed < 0.3)) resting++;
         landed.current = resting >= all.size * 0.9;
       }
       raf = requestAnimationFrame(tick);
