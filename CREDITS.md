@@ -105,3 +105,7 @@ Taken for Supreme Court | Public domain | [file page](https://commons.wikimedia.
 | Vivek Ramaswamy | Gage Skidmore | CC BY-SA 4.0 | [file page](https://commons.wikimedia.org/wiki/File:Vivek_Ramaswamy_(55241367373)_(cropped).jpg) |
 | Wes Moore | Maryland State Government | CC BY-SA 4.0 | [file page](https://commons.wikimedia.org/wiki/File:Wes_Moore_Official_Governor_Portrait.jpg) |
 | Zohran Mamdani | Dmitryshein | CC BY-SA 4.0 | [file page](https://commons.wikimedia.org/wiki/File:Zohran_Mamdani_05.25.25_(b)_(cropped).jpg) |
+
+## Fonts
+
+`assets/` holds the fonts used to draw share images and the app icon: Archivo Black (Omnibus-Type) and Geist (Vercel), both under the SIL Open Font License 1.1, from Google Fonts.

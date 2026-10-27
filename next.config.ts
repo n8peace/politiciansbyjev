@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The share image reads portraits and fonts from disk.
+  outputFileTracingIncludes: {
+    "/og": ["./public/faces/**/*", "./assets/**/*"],
+  },
 };
 
 export default nextConfig;

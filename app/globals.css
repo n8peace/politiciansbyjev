@@ -3,12 +3,14 @@
 /* Light only, on purpose: white page, red logo, like the campaign signs. */
 @theme inline {
   --color-jev: #e1261c;
+  --color-jev-deep: #c01f16;
   --color-ink: #151515;
   --color-ink-soft: #5b5b5b;
-  --color-ink-faint: #9a9a9a;
+  --color-ink-faint: #737373;
   --color-line: #e6e6e6;
   --font-sans: var(--font-geist-sans);
   --font-logo: var(--font-archivo-black);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 html,
@@ -17,4 +19,53 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   overscroll-behavior: none;
+  color-scheme: light;
+}
+
+::selection {
+  background: #fbd4d1;
+  color: #151515;
+}
+
+input {
+  caret-color: #e1261c;
+}
+
+:focus-visible {
+  outline: 2px solid #e1261c;
+  outline-offset: 3px;
+}
+
+/* Faces in the pile. Low scorers sink and fade once Jev answers. */
+.face {
+  transition:
+    opacity 450ms cubic-bezier(0.23, 1, 0.32, 1),
+    filter 450ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.face[data-dim] {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+.face[data-bottom] {
+  filter: grayscale(1);
+}
+.face:focus-visible {
+  outline-width: 3px;
+  z-index: 50 !important;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 150ms !important;
+    animation: none !important;
+  }
 }
