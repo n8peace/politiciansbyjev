@@ -27,6 +27,9 @@ const MORE = [
 const POOL = [...EXAMPLES, ...MORE];
 
 type Pos = { x: number; y: number; a: number; s: number };
+
+const LOST = "Jev got lost in the pile.";
+const HOME_TITLE = "Jev! Politicians by Jev";
 type Status = "idle" | "asking" | "done" | "blocked" | "error";
 
 // Faces render at the largest size they'll ever show and scale down,
@@ -509,14 +512,15 @@ export default function Pile({ faces }: { faces: Face[] }) {
     const url = new URL(window.location.href);
     url.searchParams.set("q", trimmed);
     window.history.replaceState(null, "", url);
+    document.title = `“${trimmed}” · Jev!`;
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: trimmed }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Jev didn't answer.");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error ?? LOST);
       const wait = rmRef.current ? 0 : MIN_DIG_MS - (performance.now() - start);
       if (wait > 0) await new Promise((ok) => setTimeout(ok, wait));
       if (id !== reqId.current) return;
@@ -534,7 +538,8 @@ export default function Pile({ faces }: { faces: Face[] }) {
     } catch (err) {
       if (id !== reqId.current) return;
       digging.current = false;
-      setError(err instanceof Error ? err.message : "Jev didn't answer.");
+      // Only our own messages reach the screen; network and parse errors don't.
+      setError(err instanceof Error && err.message.startsWith("Slow down") ? err.message : LOST);
       setStatus("error");
     }
   }, []);
@@ -551,7 +556,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
     setError("");
     setStatus("idle");
     window.history.replaceState(null, "", window.location.pathname);
-    inputEl.current?.focus();
+    document.title = HOME_TITLE;
+    // On phones, focusing would pop the keyboard over the pile.
+    if (window.matchMedia("(pointer: fine)").matches) inputEl.current?.focus();
   }, []);
 
   // Escape starts over from anywhere, not just the input.
@@ -636,7 +643,6 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const settled = status !== "idle";
   const fresh = POOL.filter((q) => !history.includes(q));
   const chips = settled ? fresh.slice((asks * 4) % Math.max(1, fresh.length)).concat(fresh).slice(0, 4) : EXAMPLES;
-  const onePick = answer?.mode === "normal" && answer.shape === "one";
 
   // One sentence for screen readers, since the faces themselves are pictures.
   const summary = tiers
@@ -666,7 +672,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
           {slot(f.id, size)}
           <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight text-balance text-ink sm:text-2xl">{f.name}</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            {t.label}, with <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span> of the vote
+            {t.label} · <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span> sure
           </p>
         </section>
       );
@@ -844,7 +850,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
                 {tiers.map(renderTier)}
               </div>
             )}
-            {status === "done" && (
+            {status === "done" && total === 0 && (
+              <p className="mt-2 text-center text-sm text-ink-faint">Try asking it another way.</p>
+            )}
+            {status === "done" && total > 0 && (
               <div className="mt-5 flex flex-col items-center gap-3">
                 <div className="flex gap-2">
                   <button
@@ -880,7 +889,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
           {status !== "asking" && (
             <nav
               aria-label={settled ? "Ask another" : "Try asking"}
-              className={`pointer-events-auto mt-4 w-full max-w-xl ${settled ? "sm:mt-5" : ""}`}
+              className={`pointer-events-auto mt-4 w-full max-w-2xl ${settled ? "sm:mt-5" : ""}`}
             >
               <ul
                 className={`no-scrollbar flex gap-2 ${settled ? "-mx-4 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0" : "flex-wrap justify-center"}`}
@@ -925,7 +934,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
               }}
               role="button"
               tabIndex={f.id === focusId ? 0 : -1}
-              aria-label={`${f.name}, ${f.role}${shown[f.id] !== undefined ? `, ${pct(shown[f.id])}${onePick ? " of Jev's vote" : ""}` : ""}`}
+              aria-label={`${f.name}, ${f.role}${shown[f.id] !== undefined ? `, ${pct(shown[f.id])}` : ""}`}
               onFocus={() => {
                 setFocusId(f.id);
                 setHover(f.id);
@@ -962,7 +971,6 @@ export default function Pile({ faces }: { faces: Face[] }) {
             <span className="tabular-nums text-white/70">
               {" "}
               · {pct(shown[hovered.id])}
-              {onePick ? " of the vote" : ""}
             </span>
           ) : null}
         </div>

@@ -181,7 +181,8 @@ async function Result({ question, a }: { question: string; a: Answered }) {
   const hero = tiers.find((t) => t.key === "pick");
   if (hero) {
     const close = tiers.find((t) => t.key === "close")?.ids.slice(0, 3) ?? [];
-    const bottom = tiers.find((t) => t.key === "bottom")?.ids[0];
+    // The card travels without the page around it, so it never names a bottom.
+    const bottom: string | undefined = undefined;
     const big = hero.ids.length === 1 ? 210 : 150;
     const heroSrcs = await Promise.all(hero.ids.map(face));
     const closeSrcs = await Promise.all(close.map(face));
@@ -201,7 +202,7 @@ async function Result({ question, a }: { question: string; a: Answered }) {
                     </div>
                     <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
                       <div style={{ fontSize: 40, fontWeight: 600, color: RED }}>{pct(shown[hero.ids[0]])}</div>
-                      <div style={{ fontSize: 26, color: SOFT }}>of Jev&apos;s vote</div>
+                      <div style={{ fontSize: 26, color: SOFT }}>sure</div>
                     </div>
                   </div>
                 )}
@@ -234,30 +235,42 @@ async function Result({ question, a }: { question: string; a: Answered }) {
     );
   }
 
-  // Everyone who fits: a row of faces, the first ones named.
+  // Everyone who fits: rows of faces under their own tier's label, so
+  // "thinks so" people are never shown as "sure".
   const ids = tiers.flatMap((t) => t.ids);
-  const shownIds = ids.slice(0, 7);
-  const srcs = await Promise.all(shownIds.map(face));
-  const more = (named ?? ids.length) - shownIds.length;
+  const room = 7;
+  const groups = [];
+  let used = 0;
+  for (const t of tiers) {
+    const take = t.ids.slice(0, room - used);
+    if (!take.length) break;
+    used += take.length;
+    groups.push({ label: t.label, ids: take, srcs: await Promise.all(take.map(face)) });
+  }
+  const more = (named ?? ids.length) - used;
   return (
     <Frame question={question}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: 26, color: SOFT }}>{tiers[0].label}</div>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 18 }}>
-          {srcs.map((src, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 132 }}>
-              <Face src={src} size={120} />
-              <div style={{ marginTop: 8, fontSize: 20, fontWeight: 600, textAlign: "center", lineHeight: 1.15 }}>
-                {byId.get(shownIds[i])?.name}
-              </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 40 }}>
+        {groups.map((g) => (
+          <div key={g.label} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ fontSize: 26, color: SOFT }}>{g.label}</div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 18 }}>
+              {g.srcs.map((src, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 132 }}>
+                  <Face src={src} size={120} />
+                  <div style={{ marginTop: 8, fontSize: 20, fontWeight: 600, textAlign: "center", lineHeight: 1.15 }}>
+                    {byId.get(g.ids[i])?.name}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-          {more > 0 && (
-            <div style={{ display: "flex", height: 120, alignItems: "center", fontSize: 30, color: SOFT }}>
-              +{more} more
-            </div>
-          )}
-        </div>
+          </div>
+        ))}
+        {more > 0 && (
+          <div style={{ display: "flex", height: 120, alignItems: "center", fontSize: 30, color: SOFT }}>
+            +{more} more
+          </div>
+        )}
       </div>
     </Frame>
   );

@@ -31,9 +31,16 @@ input {
   caret-color: #e1261c;
 }
 
-:focus-visible {
-  outline: 2px solid #e1261c;
-  outline-offset: 3px;
+@layer base {
+  :focus-visible {
+    outline: 2px solid #e1261c;
+    outline-offset: 3px;
+  }
+}
+
+/* The input draws its own ring. */
+input:focus-visible {
+  outline: none;
 }
 
 /* Faces in the pile. Low scorers sink and fade once Jev answers. */

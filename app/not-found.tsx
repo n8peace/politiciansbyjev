@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="mt-2 text-ink-soft text-pretty">This page isn&apos;t in it.</p>
       <Link
         href="/"
-        className="mt-8 inline-flex min-h-11 items-center rounded-full bg-ink px-6 font-medium text-white transition-transform active:scale-[0.97]"
+        className="mt-8 inline-flex min-h-11 items-center rounded-full bg-jev px-6 font-medium text-white transition-[background-color,transform] hover:bg-jev-deep active:scale-[0.97]"
       >
         Back to the pile
       </Link>
