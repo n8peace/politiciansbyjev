@@ -11,6 +11,8 @@ export type Tier = {
   key: "pick" | "close" | "sure" | "likely" | "guess" | "bottom";
   label: string;
   ids: string[];
+  // How many people Jev put in this tier, before the on-screen cap.
+  total: number;
 };
 
 export type Answer =
@@ -63,7 +65,7 @@ export function groupAnswer(a: Answered): Grouped {
     const out = a.mode === "out";
     const ids = ranked.filter(([, p]) => out || p >= STRICT).map(([id]) => id);
     const label = out ? "Publicly out" : "Jev is very sure";
-    return { tiers: ids.length ? [{ key: "sure", label, ids }] : [], shown: a.scores, weight: {} };
+    return { tiers: ids.length ? [{ key: "sure", label, ids, total: ids.length }] : [], shown: a.scores, weight: {} };
   }
 
   if (a.shape === "one") {
@@ -72,7 +74,7 @@ export function groupAnswer(a: Answered): Grouped {
     if (!lead || lead[1] < PICK_MIN) {
       const ids = best.slice(0, GUESS_COUNT).map(([id]) => id);
       return {
-        tiers: ids.length ? [{ key: "guess", label: "Jev can't pick one", ids }] : [],
+        tiers: ids.length ? [{ key: "guess", label: "Jev can't pick one", ids, total: ids.length }] : [],
         shown: a.best,
         weight: a.scores,
       };
@@ -83,9 +85,9 @@ export function groupAnswer(a: Answered): Grouped {
       .filter(([, p]) => p >= CLOSE_MIN)
       .slice(0, CLOSE_COUNT)
       .map(([id]) => id);
-    const tiers: Tier[] = [{ key: "pick", label: top.length > 1 ? "Jev can't split them" : "Jev's pick", ids: top }];
-    if (close.length) tiers.push({ key: "close", label: "Also in the running", ids: close });
-    if (a.worst) tiers.push({ key: "bottom", label: "Bottom of the pile", ids: [a.worst] });
+    const tiers: Tier[] = [{ key: "pick", label: top.length > 1 ? "Jev can't split them" : "Jev's pick", ids: top, total: top.length }];
+    if (close.length) tiers.push({ key: "close", label: "Also in the running", ids: close, total: close.length });
+    if (a.worst) tiers.push({ key: "bottom", label: "Bottom of the pile", ids: [a.worst], total: 1 });
     return { tiers, shown: a.best, weight: a.scores };
   }
 
@@ -100,8 +102,8 @@ export function groupAnswer(a: Answered): Grouped {
   if (sure.length || likely.length) {
     const tiers: Tier[] = [];
     const room = Math.max(0, MAX_LIFTED - sure.length);
-    if (sure.length) tiers.push({ key: "sure", label: "Jev is sure", ids: sure.slice(0, MAX_LIFTED) });
-    if (likely.length && room) tiers.push({ key: "likely", label: "Jev thinks so", ids: likely.slice(0, room) });
+    if (sure.length) tiers.push({ key: "sure", label: "Jev is sure", ids: sure.slice(0, MAX_LIFTED), total: sure.length });
+    if (likely.length && room) tiers.push({ key: "likely", label: "Jev thinks so", ids: likely.slice(0, room), total: likely.length });
     return { tiers, shown: a.scores, weight: a.scores };
   }
 
@@ -111,16 +113,8 @@ export function groupAnswer(a: Answered): Grouped {
     .slice(0, GUESS_COUNT)
     .map(([id]) => id);
   return {
-    tiers: guess.length ? [{ key: "guess", label: "Jev's best guess", ids: guess }] : [],
+    tiers: guess.length ? [{ key: "guess", label: "Jev's best guess", ids: guess, total: guess.length }] : [],
     shown: a.scores,
     weight: a.scores,
   };
-}
-
-// Total people Jev named, before the MAX_LIFTED cap. Used for "and N more".
-export function namedCount(a: Answered) {
-  if (a.mode !== "normal" || a.shape !== "many") return null;
-  const ranked = desc(a.scores);
-  const median = ranked[Math.floor(ranked.length / 2)]?.[1] ?? 0;
-  return ranked.filter(([, p]) => p >= SURE || (p >= LIKELY && p - median >= ABOVE_FIELD)).length;
 }

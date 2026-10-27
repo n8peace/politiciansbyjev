@@ -2,7 +2,7 @@
 
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { groupAnswer, namedCount, type Answered, type Grouped, type Tier } from "@/lib/tiers";
+import { groupAnswer, type Answered, type Grouped, type Tier } from "@/lib/tiers";
 
 export type Face = { id: string; name: string; role: string; img: string };
 
@@ -41,10 +41,11 @@ const MIN_DIG_MS = 650;
 // After the answer, low scorers sink and high scorers bubble up for this long.
 const SORT_MS = 1800;
 
-// Size faces so the settled pile fills about a quarter of the screen.
+// Size faces so the settled pile fills about a quarter of the screen,
+// but never so small on a phone that they stop reading as people.
 function radiusFor(width: number, height: number) {
   const r = Math.sqrt((width * height * 0.26) / (100 * 3.6));
-  return Math.round(Math.min(32, Math.max(14, r)));
+  return Math.round(Math.min(32, Math.max(19, r)));
 }
 
 // Slot size for a lifted face, and whether its name sits under it.
@@ -637,7 +638,6 @@ export default function Pile({ faces }: { faces: Face[] }) {
 
   const shown = grouped?.shown ?? {};
   const total = tiers.reduce((n, t) => n + t.ids.length, 0);
-  const named = answer ? namedCount(answer) : null;
   const hovered = hover ? byId.get(hover) : null;
   const strict = answer?.mode === "strict";
   const settled = status !== "idle";
@@ -672,7 +672,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
           {slot(f.id, size)}
           <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight text-balance text-ink sm:text-2xl">{f.name}</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            {t.label} · <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span> sure
+            {t.label} · <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span> of Jev&apos;s vote
           </p>
         </section>
       );
@@ -695,7 +695,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
       <section key={t.key} className="flex w-full flex-col items-center">
         <h2 className="mb-2 text-[13px] font-medium text-ink-soft">
           {t.label}
-          {many && <span className="ml-1.5 tabular-nums text-ink-faint">{named && named > total ? named : t.ids.length}</span>}
+          {many && <span className="ml-1.5 tabular-nums text-ink-faint">{t.total}</span>}
         </h2>
         <ul className="flex flex-wrap justify-center gap-x-2 gap-y-2">
           {t.ids.map((id) => {
@@ -722,7 +722,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
         {!showNames && (
           <p className="mt-2 max-w-md text-center text-xs leading-relaxed text-pretty text-ink-soft">
             {t.ids.map((id) => byId.get(id)?.name).join(", ")}
-            {named && named > total && t.key === tiers[tiers.length - 1].key ? `, and ${named - total} more` : ""}
+            {t.total > t.ids.length ? `, and ${t.total - t.ids.length} more` : ""}
           </p>
         )}
       </section>
@@ -946,7 +946,11 @@ export default function Pile({ faces }: { faces: Face[] }) {
               onPointerMove={moveDrag}
               onPointerUp={release}
               onPointerCancel={release}
-              onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
+              onPointerLeave={(e) => {
+                // Touch fires leave right after lifting the finger; keep the name up a moment.
+                const later = e.pointerType === "touch" ? 1800 : 0;
+                setTimeout(() => setHover((h) => (h === f.id ? null : h)), later);
+              }}
               className="face pointer-events-auto absolute top-0 left-0 cursor-grab touch-none overflow-hidden rounded-full bg-line shadow-[0_2px_6px_rgba(0,0,0,0.25)] ring-[3px] ring-white will-change-transform active:cursor-grabbing"
               style={{ width: BASE, height: BASE, transform: "translate(-200px, -200px)" }}
             >

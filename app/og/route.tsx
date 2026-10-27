@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { answer, cached } from "@/lib/answer";
 import { clientIp, limited } from "@/lib/limit";
 import { politicians } from "@/lib/politicians";
-import { groupAnswer, namedCount, type Answer, type Answered } from "@/lib/tiers";
+import { groupAnswer, type Answer, type Answered } from "@/lib/tiers";
 
 // The share card for a question: 1200x630, the same answer the asker saw.
 // Link previews (X, iMessage, Slack) fetch this once; the CDN keeps it.
@@ -166,7 +166,6 @@ async function Home() {
 
 async function Result({ question, a }: { question: string; a: Answered }) {
   const { tiers, shown } = groupAnswer(a);
-  const named = namedCount(a);
 
   if (!tiers.length) {
     return (
@@ -202,7 +201,7 @@ async function Result({ question, a }: { question: string; a: Answered }) {
                     </div>
                     <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
                       <div style={{ fontSize: 40, fontWeight: 600, color: RED }}>{pct(shown[hero.ids[0]])}</div>
-                      <div style={{ fontSize: 26, color: SOFT }}>sure</div>
+                      <div style={{ fontSize: 26, color: SOFT }}>of Jev&apos;s vote</div>
                     </div>
                   </div>
                 )}
@@ -237,8 +236,7 @@ async function Result({ question, a }: { question: string; a: Answered }) {
 
   // Everyone who fits: rows of faces under their own tier's label, so
   // "thinks so" people are never shown as "sure".
-  const ids = tiers.flatMap((t) => t.ids);
-  const room = 7;
+  const room = 6;
   const groups = [];
   let used = 0;
   for (const t of tiers) {
@@ -247,7 +245,8 @@ async function Result({ question, a }: { question: string; a: Answered }) {
     used += take.length;
     groups.push({ label: t.label, ids: take, srcs: await Promise.all(take.map(face)) });
   }
-  const more = (named ?? ids.length) - used;
+  // Everyone Jev named but the card has no room for, across every tier.
+  const more = tiers.reduce((n, t) => n + t.total, 0) - used;
   return (
     <Frame question={question}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 40 }}>
