@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Pile from "@/app/components/Pile";
 import { getAnswer, MAX_LEN } from "@/lib/answer";
-import { politicians, faceSrc } from "@/lib/politicians";
+import { politicians, faceSrc, faceSmallSrc } from "@/lib/politicians";
 import { verdictFor } from "@/lib/verdict";
 
 type Props = { searchParams: Promise<{ q?: string | string[] }> };
@@ -33,7 +33,8 @@ export default async function Home({ searchParams }: Props) {
     id: p.id,
     name: p.name,
     role: p.role,
-    img: faceSrc(p.id),
+    img: faceSmallSrc(p.id),
+    big: faceSrc(p.id),
   }));
   return <Pile faces={faces} initialQuestion={q} />;
 }

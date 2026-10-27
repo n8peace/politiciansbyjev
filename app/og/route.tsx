@@ -59,9 +59,9 @@ const Wordmark = ({ size }: { size: number }) => (
   </div>
 );
 
-const Footer = () => (
+const Footer = ({ sure = true }: { sure?: boolean }) => (
   <div style={{ display: "flex", fontSize: 24, color: SOFT }}>
-    Jev’s opinion, not fact · politiciansbyjev.vercel.app
+    {sure ? "Jev’s opinion, not fact" : "From the public record"} · politiciansbyjev.vercel.app
   </div>
 );
 
@@ -76,8 +76,9 @@ async function home() {
     <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: PAPER, padding: 72, justifyContent: "space-between" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Wordmark size={168} />
-        <div style={{ fontSize: 44, color: INK, fontWeight: 500, letterSpacing: -0.6 }}>
-          America’s 100 most famous politicians. You ask. Jev picks.
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 44, color: INK, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.2 }}>
+          <span>America’s 100 most famous politicians.</span>
+          <span style={{ color: SOFT }}>You ask. Jev picks.</span>
         </div>
       </div>
       <div style={{ display: "flex" }}>
@@ -104,18 +105,24 @@ function plain(question: string, line: string) {
   );
 }
 
-async function verdictCard(question: string, scores: Record<string, number>, v: NonNullable<ReturnType<typeof verdictFor>>) {
+async function verdictCard(
+  question: string,
+  scores: Record<string, number>,
+  v: NonNullable<ReturnType<typeof verdictFor>>,
+  sure: boolean,
+) {
   const [topId, ...rest] = v.ids;
   const top = byId.get(topId)!;
   const others = rest.slice(0, 6);
   const [topSrc, ...otherSrcs] = await Promise.all([topId, ...others].map(face));
-  const qSize = question.length > 60 ? 44 : 56;
+  // The answer is the punchline, so the name outranks the question.
+  const qSize = question.length > 60 ? 32 : 40;
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", background: PAPER, padding: 72 }}>
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, paddingRight: 48 }}>
         <Wordmark size={96} />
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          <div style={{ fontSize: qSize, color: INK, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1.12 }}>{`“${question}”`}</div>
+          <div style={{ fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.2 }}>{`“${question}”`}</div>
           {others.length > 0 && (
             <div style={{ display: "flex", alignItems: "center" }}>
               {otherSrcs.map((src, i) => (
@@ -129,14 +136,16 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
             </div>
           )}
         </div>
-        <Footer />
+        <Footer sure={sure} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 400 }}>
         <Face src={topSrc} size={300} ring={8} />
-        <div style={{ marginTop: 28, fontFamily: "Archivo Black", fontSize: top.name.length > 16 ? 38 : 46, color: INK, letterSpacing: -1, textAlign: "center" }}>
+        <div style={{ marginTop: 28, fontFamily: "Archivo Black", fontSize: top.name.length > 16 ? 48 : 56, color: INK, lineHeight: 1.05, letterSpacing: -1, textAlign: "center" }}>
           {top.name}
         </div>
-        <div style={{ marginTop: 10, fontSize: 30, color: SOFT }}>{`${v.label} · ${pct(scores[topId])}`}</div>
+        <div style={{ marginTop: 12, fontSize: 30, color: SOFT }}>
+          {sure ? `${v.label} · ${pct(scores[topId])}` : "On the public record"}
+        </div>
       </div>
     </div>
   );
@@ -156,7 +165,7 @@ export async function GET(req: Request) {
     else if ("blocked" in a) body = plain("", "Jev won’t touch that one.");
     else {
       const v = verdictFor(a.scores, a.mode);
-      if (v) body = await verdictCard(q, a.scores, v);
+      if (v) body = await verdictCard(q, a.scores, v, a.mode !== "out");
       else if (a.mode === "strict") body = plain("", "Jev isn’t sure enough to name anyone.");
       else body = plain(q, "Jev says: nobody.");
     }

@@ -19,3 +19,4 @@ export const politicians = data as Politician[];
 
 // Portraits are saved locally by scripts/fetch-faces.mjs.
 export const faceSrc = (id: string) => `/faces/${id}.jpg`;
+export const faceSmallSrc = (id: string) => `/faces/sm/${id}.jpg`;
