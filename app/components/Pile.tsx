@@ -2,7 +2,8 @@
 
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { groupScores, type Tier } from "@/lib/tiers";
+import Share from "@/app/components/Share";
+import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
 
 export type Face = { id: string; name: string; role: string; img: string };
 
@@ -13,6 +14,8 @@ const EXAMPLES = [
   "Who would win a fistfight?",
   "Who's the funniest?",
   "Who has the best hair?",
+  "Who would survive a zombie apocalypse?",
+  "Who gives the best speeches?",
 ];
 
 type Pos = { x: number; y: number; a: number; s: number };
@@ -24,68 +27,68 @@ function radiusFor(width: number, height: number) {
   return Math.round(Math.min(32, Math.max(14, r)));
 }
 
-// Lifted faces shrink as the crowd grows so big groups still fit.
-// Names show only while there's room for them.
-function slotLayout(tier: Tier["key"], total: number, narrow: boolean) {
-  if (narrow) {
-    if (total > 30) return { size: 26, names: false };
-    if (total > 12) return { size: 34, names: false };
-    if (total > 4) return { size: 44, names: false };
-    return { size: 60, names: true };
-  }
-  if (total > 30) return { size: 34, names: false };
-  if (total > 12) return { size: 44, names: false };
-  return { size: tier === "likely" ? 56 : 72, names: true };
+// Sizes for faces that float out of the pile. The top pick is the hero; the
+// rest shrink as the crowd grows. Names show for the first few, and every
+// face can be tapped or focused for its name.
+function sizes(narrow: boolean, others: number) {
+  return {
+    hero: narrow ? 104 : 136,
+    named: narrow ? 3 : 7, // one full row of names
+    other: others > 24 ? (narrow ? 30 : 36) : others > 8 ? (narrow ? 38 : 44) : narrow ? 52 : 60,
+  };
 }
 
-export default function Pile({ faces }: { faces: Face[] }) {
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; initialQuestion?: string }) {
   const stage = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const faceEls = useRef(new Map<string, HTMLDivElement>());
   const slotEls = useRef(new Map<string, HTMLDivElement>());
   const bodies = useRef(new Map<string, Matter.Body>());
   const pos = useRef(new Map<string, Pos>());
-  const lifted = useRef(new Set<string>());
-  // The face being dragged, where the pointer is, and how fast it's moving.
-  const drag = useRef<{
-    id: string;
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    t: number;
-    moved: number;
-  } | null>(null);
+  // Faces headed out of the pile, and when each one leaves (best first).
+  const lifted = useRef(new Map<string, number>());
+  const launched = useRef(new Set<string>());
+  // How much each pile face has "sunk" (0 = full color, 1 = gray), by score.
+  const sink = useRef(new Map<string, number>());
+  const drag = useRef<{ id: string; x: number; y: number; vx: number; vy: number; t: number; moved: number } | null>(null);
   const engine = useRef<Matter.Engine | null>(null);
+  const reduced = useRef(false);
+
   const [r, setR] = useState(0);
   const [narrow, setNarrow] = useState(false);
-
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion);
   const [asked, setAsked] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [mode, setMode] = useState<Mode>("normal");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
-  const [strict, setStrict] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
+  const [focusIdx, setFocusIdx] = useState(0);
 
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
+  const answered = status !== "idle";
 
-  // Face size is fixed per session, picked from the screen width.
+  // Face size is fixed per session, picked from the screen size.
   useLayoutEffect(() => {
     const el = stage.current!;
+    reduced.current = prefersReducedMotion();
     setR(radiusFor(el.clientWidth, el.clientHeight));
     setNarrow(el.clientWidth < 640);
   }, []);
 
-  // Physics: one engine, walls on three sides, faces dropped in from above.
+  // Physics: one engine, walls on three sides, faces dropped in from just
+  // above the screen. With reduced motion the pile is settled before it shows.
   useEffect(() => {
     const el = stage.current!;
     if (!r) return;
     const all = bodies.current;
-    const e = Matter.Engine.create({ gravity: { x: 0, y: 1 }, enableSleeping: true });
+    const e = Matter.Engine.create({ gravity: { x: 0, y: 1.6 }, enableSleeping: true });
     engine.current = e;
 
-    // Oversized walls so a resize only needs a reposition.
     const opts = { isStatic: true };
     const floor = Matter.Bodies.rectangle(0, 0, 20000, 100, opts);
     const left = Matter.Bodies.rectangle(0, 0, 100, 20000, opts);
@@ -102,12 +105,13 @@ export default function Pile({ faces }: { faces: Face[] }) {
 
     const w = el.clientWidth;
     faces.forEach((f) => {
-      const b = Matter.Bodies.circle(
-        r + Math.random() * (w - 2 * r),
-        -r - Math.random() * el.clientHeight * 0.9,
-        r,
-        { restitution: 0, friction: 0.8, frictionAir: 0.02, density: 0.002, sleepThreshold: 30 },
-      );
+      const b = Matter.Bodies.circle(r + Math.random() * (w - 2 * r), -r - Math.random() * h * 0.5, r, {
+        restitution: 0,
+        friction: 0.8,
+        frictionAir: 0.02,
+        density: 0.002,
+        sleepThreshold: 30,
+      });
       bodies.current.set(f.id, b);
       pos.current.set(f.id, { x: b.position.x, y: b.position.y, a: 0, s: 1 });
     });
@@ -117,6 +121,10 @@ export default function Pile({ faces }: { faces: Face[] }) {
     // changes frame to frame (e.g. 120Hz phones), so bank time and step
     // exactly 1/60s at a time.
     const STEP = 1000 / 60;
+    const settle = reduced.current ? 420 : 15;
+    for (let i = 0; i < settle; i++) Matter.Engine.update(e, STEP);
+
+    const written = new Map<string, string>();
     let raf = 0;
     let last = performance.now();
     let bank = 0;
@@ -124,36 +132,52 @@ export default function Pile({ faces }: { faces: Face[] }) {
       const dt = Math.min(now - last, 100);
       last = now;
       bank += dt;
+
+      // Launch faces whose turn has come: they leave the physics world.
+      for (const [id, at] of lifted.current) {
+        if (now >= at && !launched.current.has(id)) {
+          launched.current.add(id);
+          Matter.Composite.remove(e.world, bodies.current.get(id)!);
+          const node = faceEls.current.get(id);
+          if (node) {
+            node.style.opacity = "1";
+            // Reduced motion: the face appears in place instead of flying.
+            if (reduced.current) node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
+          }
+        }
+      }
+
       while (bank >= STEP) {
         const d = drag.current;
         if (d) {
           // Pull the held face toward the pointer by velocity, so it still
           // shoves the faces it runs into.
           const b = bodies.current.get(d.id)!;
-          Matter.Body.setVelocity(b, {
-            x: (d.x - b.position.x) * 0.35,
-            y: (d.y - b.position.y) * 0.35,
-          });
+          Matter.Body.setVelocity(b, { x: (d.x - b.position.x) * 0.35, y: (d.y - b.position.y) * 0.35 });
         }
         Matter.Engine.update(e, STEP);
         bank -= STEP;
       }
-      const k = 1 - Math.pow(1 - 0.16, dt / 16.7);
+
+      const k = reduced.current ? 1 : 1 - Math.pow(1 - 0.14, dt / 16.7);
       const kPile = 1 - Math.pow(1 - 0.2, dt / 16.7);
       const box = el.getBoundingClientRect();
+      const view = scroller.current?.getBoundingClientRect();
       for (const f of faces) {
         const p = pos.current.get(f.id)!;
         const node = faceEls.current.get(f.id);
-        if (lifted.current.has(f.id)) {
+        const out = launched.current.has(f.id);
+        let hidden = false;
+        if (out) {
           const slot = slotEls.current.get(f.id);
           if (slot) {
             const s = slot.getBoundingClientRect();
-            const tx = s.left - box.left + s.width / 2;
-            const ty = s.top - box.top + s.width / 2;
-            p.x += (tx - p.x) * k;
-            p.y += (ty - p.y) * k;
+            p.x += (s.left - box.left + s.width / 2 - p.x) * k;
+            p.y += (s.top - box.top + s.height / 2 - p.y) * k;
             p.a += (0 - p.a) * k;
             p.s += (s.width / (2 * r) - p.s) * k;
+            // A picked face scrolled out of the results stays hidden.
+            if (view && (s.bottom < view.top || s.top > view.bottom)) hidden = true;
           }
         } else {
           const b = bodies.current.get(f.id)!;
@@ -163,9 +187,20 @@ export default function Pile({ faces }: { faces: Face[] }) {
           p.s += (1 - p.s) * kPile;
         }
         if (node) {
-          node.style.transform = `translate(${p.x - r}px, ${p.y - r}px) rotate(${p.a}rad) scale(${p.s})`;
-          // Picked faces sit above the results; the pile sits behind them.
-          node.style.zIndex = lifted.current.has(f.id) ? "35" : "10";
+          // Real size, not a scale transform, so a floated-up face stays sharp.
+          const size = Math.round(2 * r * p.s * 2) / 2;
+          node.style.transform = `translate(${p.x - size / 2}px, ${p.y - size / 2}px) rotate(${p.a}rad)`;
+          const g = out ? 0 : (sink.current.get(f.id) ?? 0);
+          // Only touch layout and paint properties when they change.
+          const next = `${size}|${out}|${hidden}|${g}`;
+          if (written.get(f.id) !== next) {
+            written.set(f.id, next);
+            node.style.width = node.style.height = `${size}px`;
+            node.style.zIndex = out ? "35" : "10";
+            node.style.visibility = hidden ? "hidden" : "visible";
+            node.style.filter = g ? `grayscale(${g}) contrast(${1 - g * 0.15})` : "";
+            if (!out) node.style.opacity = String(1 - g * 0.4);
+          }
         }
       }
       raf = requestAnimationFrame(tick);
@@ -189,45 +224,58 @@ export default function Pile({ faces }: { faces: Face[] }) {
     };
   }, [faces, r]);
 
-  // Move faces between the pile and the result slots whenever tiers change.
+  // Float the picks out of the pile one at a time, best first, and let the
+  // rest sink: faces fade toward gray by how far they missed.
   useLayoutEffect(() => {
     const e = engine.current;
     if (!e) return;
-    const next = new Set(tiers.flatMap((t) => t.ids));
-    for (const id of lifted.current) {
-      if (next.has(id)) continue;
+    const next = verdict?.ids ?? [];
+    const keep = new Set(next);
+    for (const id of launched.current) {
+      if (keep.has(id)) continue;
       const b = bodies.current.get(id)!;
       const p = pos.current.get(id)!;
       Matter.Body.setPosition(b, { x: p.x, y: p.y });
       Matter.Body.setVelocity(b, { x: 0, y: 0 });
       Matter.Sleeping.set(b, false);
       Matter.Composite.add(e.world, b);
+      launched.current.delete(id);
     }
-    for (const id of next) {
-      if (!lifted.current.has(id)) Matter.Composite.remove(e.world, bodies.current.get(id)!);
-    }
-    lifted.current = next;
-  }, [tiers]);
+    const now = performance.now();
+    const gap = reduced.current ? 0 : Math.min(90, 900 / Math.max(next.length, 1));
+    const map = new Map<string, number>();
+    next.forEach((id, i) => map.set(id, launched.current.has(id) ? 0 : now + (i === 0 ? 0 : 180 + i * gap)));
+    lifted.current = map;
 
-  // Tapping a face in the pile makes it hop. That's the only bounce there is.
+    sink.current.clear();
+    if (status === "done" && verdict) {
+      for (const f of faces) {
+        if (keep.has(f.id)) continue;
+        const s = scores[f.id];
+        sink.current.set(f.id, s === undefined ? 1 : Math.min(1, Math.max(0, 1 - s / LIKELY)) ** 0.7);
+      }
+    }
+  }, [verdict, status, scores, faces]);
+
+  // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
-    if (lifted.current.has(id)) return;
+    if (launched.current.has(id)) return;
     const b = bodies.current.get(id);
     if (!b) return;
     Matter.Sleeping.set(b, false);
-    Matter.Body.setVelocity(b, { x: (Math.random() - 0.5) * 3, y: -8 });
+    Matter.Body.setVelocity(b, { x: (Math.random() - 0.5) * 3, y: -9 });
     Matter.Body.setAngularVelocity(b, (Math.random() - 0.5) * 0.2);
   }, []);
 
-  // Grab a face: drag it around, fling it on release, or tap it to hop.
   const local = (e: React.PointerEvent) => {
     const box = stage.current!.getBoundingClientRect();
     return { x: e.clientX - box.left, y: e.clientY - box.top };
   };
 
+  // Grab a face: drag it around, fling it on release, or tap it to hop.
   const grab = useCallback((e: React.PointerEvent<HTMLDivElement>, id: string) => {
     setHover(id);
-    if (lifted.current.has(id)) return;
+    if (launched.current.has(id)) return;
     const b = bodies.current.get(id);
     if (!b) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -266,73 +314,74 @@ export default function Pile({ faces }: { faces: Face[] }) {
 
   // Desktop: sweeping the mouse through the pile pushes faces aside.
   const lastMouse = useRef<{ x: number; y: number } | null>(null);
-  const nudge = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse" || drag.current) return;
-    const { x, y } = local(e);
-    const prev = lastMouse.current;
-    lastMouse.current = { x, y };
-    if (!prev) return;
-    const mx = x - prev.x;
-    const my = y - prev.y;
-    const speed = Math.hypot(mx, my);
-    if (speed < 2) return;
-    const reach = r * 1.6;
-    for (const [id, b] of bodies.current) {
-      if (lifted.current.has(id)) continue;
-      const dx = b.position.x - x;
-      const dy = b.position.y - y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > reach) continue;
-      const push = Math.min(speed, 30) * 0.12 * (1 - dist / reach);
-      Matter.Sleeping.set(b, false);
-      Matter.Body.setVelocity(b, {
-        x: b.velocity.x + (mx / speed) * push + (dx / (dist || 1)) * push * 0.5,
-        y: b.velocity.y + (my / speed) * push + (dy / (dist || 1)) * push * 0.5 - push * 0.3,
-      });
-    }
-  }, [r]);
-
-  const ask = useCallback(
-    async (q: string) => {
-      const trimmed = q.trim();
-      if (!trimmed) return;
-      setQuestion(trimmed);
-      setAsked(trimmed);
-      setStatus("asking");
-      setError("");
-      setTiers([]);
-      const url = new URL(window.location.href);
-      url.searchParams.set("q", trimmed);
-      window.history.replaceState(null, "", url);
-      try {
-        const res = await fetch("/api/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: trimmed }),
+  const nudge = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType !== "mouse" || drag.current || reduced.current) return;
+      const { x, y } = local(e);
+      const prev = lastMouse.current;
+      lastMouse.current = { x, y };
+      if (!prev) return;
+      const mx = x - prev.x;
+      const my = y - prev.y;
+      const speed = Math.hypot(mx, my);
+      if (speed < 2) return;
+      const reach = r * 1.6;
+      for (const [id, b] of bodies.current) {
+        if (launched.current.has(id)) continue;
+        const dx = b.position.x - x;
+        const dy = b.position.y - y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > reach) continue;
+        const push = Math.min(speed, 30) * 0.12 * (1 - dist / reach);
+        Matter.Sleeping.set(b, false);
+        Matter.Body.setVelocity(b, {
+          x: b.velocity.x + (mx / speed) * push + (dx / (dist || 1)) * push * 0.5,
+          y: b.velocity.y + (my / speed) * push + (dy / (dist || 1)) * push * 0.5 - push * 0.3,
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Jev didn't answer.");
-        if (data.blocked) {
-          setStatus("blocked");
-          return;
-        }
-        setStrict(data.mode === "strict");
-        setScores(data.scores);
-        setTiers(groupScores(data.scores, data.mode));
-        setStatus("done");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Jev didn't answer.");
-        setStatus("error");
       }
     },
-    [],
+    [r],
   );
+
+  const ask = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setQuestion(trimmed);
+    setAsked(trimmed);
+    setStatus("asking");
+    setError("");
+    setVerdict(null);
+    const url = new URL(window.location.href);
+    url.searchParams.set("q", trimmed);
+    window.history.replaceState(null, "", url);
+    scroller.current?.scrollTo({ top: 0 });
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Jev didn't answer.");
+      if (data.blocked) {
+        setStatus("blocked");
+        return;
+      }
+      setMode(data.mode);
+      setScores(data.scores);
+      setVerdict(verdictFor(data.scores, data.mode as Mode));
+      setStatus("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Jev didn't answer.");
+      setStatus("error");
+    }
+  }, []);
 
   const inputEl = useRef<HTMLInputElement>(null);
   const clear = useCallback(() => {
     setQuestion("");
     setAsked("");
-    setTiers([]);
+    setVerdict(null);
     setScores({});
     setError("");
     setStatus("idle");
@@ -340,198 +389,328 @@ export default function Pile({ faces }: { faces: Face[] }) {
     inputEl.current?.focus();
   }, []);
 
-  // Shared links (?q=...) ask on load, once the pile has landed.
+  // Shared links (?q=...) ask on load, once the pile has landed. The answer is
+  // usually cached, so this is quick.
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (!q) return;
-    const t = setTimeout(() => ask(q), 2000);
+    if (!initialQuestion) return;
+    const t = setTimeout(() => ask(initialQuestion), prefersReducedMotion() ? 0 : 900);
     return () => clearTimeout(t);
-  }, [ask]);
+  }, [ask, initialQuestion]);
 
-  const total = tiers.reduce((n, t) => n + t.ids.length, 0);
+  // Tooltips from a tap fade on their own; mouse hover clears on leave.
+  useEffect(() => {
+    if (!hover) return;
+    const t = setTimeout(() => setHover((h) => (h === hover ? null : h)), 2600);
+    return () => clearTimeout(t);
+  }, [hover]);
+
+  // Keyboard: the pile is one tab stop. Arrow keys move between faces in
+  // reading order, Enter or Space makes one hop.
+  const pileOrder = useMemo(() => faces.filter((f) => !verdict?.ids.includes(f.id)), [faces, verdict]);
+  const onPileKey = (e: React.KeyboardEvent, i: number) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (step) {
+      e.preventDefault();
+      const next = (i + step + pileOrder.length) % pileOrder.length;
+      setFocusIdx(next);
+      faceEls.current.get(pileOrder[next].id)?.focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      hop(pileOrder[i].id);
+    }
+  };
+
   const hovered = hover ? byId.get(hover) : null;
+  const top = verdict ? byId.get(verdict.ids[0]) : null;
+  const others = verdict ? verdict.ids.slice(1) : [];
+  const size = sizes(narrow, others.length);
+  const tie = verdict?.tie ? byId.get(verdict.tie) : null;
+  const shareText = top ? `Jev picked ${top.name} (${pct(scores[top.id])}): “${asked}”` : `“${asked}” on Jev!`;
+  const more = EXAMPLES.filter((q) => q.toLowerCase() !== asked.toLowerCase());
+
+  const slot = (id: string, px: number) => {
+    const f = byId.get(id)!;
+    return (
+      <div
+        ref={(n) => {
+          if (n) slotEls.current.set(id, n);
+          else slotEls.current.delete(id);
+        }}
+        tabIndex={0}
+        role="img"
+        aria-label={`${f.name}, ${pct(scores[id])}`}
+        onFocus={() => setHover(id)}
+        onBlur={() => setHover((h) => (h === id ? null : h))}
+        className="shrink-0 rounded-full"
+        style={{ width: px, height: px }}
+      />
+    );
+  };
+
+  const chip =
+    "inline-flex h-11 shrink-0 items-center rounded-full border border-line bg-paper/90 px-4 text-sm text-ink-soft transition-[color,border-color,transform] duration-150 ease-out hover:border-ink/30 hover:text-ink active:scale-[0.97]";
 
   return (
-    <div
-      ref={stage}
-      onPointerMove={nudge}
-      className="relative h-svh w-full overflow-hidden select-none"
-    >
-      <a
-        href="/credits"
-        className="absolute right-3 top-3 z-40 text-xs text-ink-faint hover:text-ink"
+    <div ref={stage} onPointerMove={nudge} className="relative h-svh w-full overflow-hidden select-none">
+      {/* The column scrolls when a big verdict outgrows the screen. It lets
+          pointer events fall through to the pile except on its own content. */}
+      <div
+        ref={scroller}
+        tabIndex={-1}
+        className="no-scrollbar pointer-events-none relative z-20 h-full overflow-y-auto overscroll-contain"
       >
-        Photo credits
-      </a>
-      <main className="relative z-20 mx-auto flex max-w-3xl flex-col items-center px-4 pt-6 sm:pt-12">
-        <h1 className="font-logo text-[5.5rem] leading-none tracking-tight text-jev sm:text-[8rem]">
-          Jev!
-        </h1>
-        <p className="mt-2 text-center text-sm text-ink-soft sm:text-base">
-          America&apos;s 100 most famous politicians.<br className="sm:hidden" /> You ask. An AI picks.
-        </p>
+        <nav className="flex items-center justify-between px-3 text-xs text-ink-faint *:pointer-events-auto">
+          <a href="https://bananaintelligence.ai" className="inline-flex h-11 items-center px-1 hover:text-ink">
+            A Banana Intelligence product
+          </a>
+          <a href="/credits" className="inline-flex h-11 items-center px-1 hover:text-ink">
+            Photo credits
+          </a>
+        </nav>
 
-        <form
-          className="mt-6 w-full max-w-xl"
-          onSubmit={(e) => {
-            e.preventDefault();
-            ask(question);
-          }}
-        >
-          <div className="relative">
-            <input
-              ref={inputEl}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") clear();
-              }}
-              maxLength={140}
-              placeholder="Who's the most corrupt?"
-              aria-label="Ask Jev about politicians"
-              className="w-full rounded-2xl border border-line bg-white py-4 pl-5 pr-14 text-lg shadow-[0_2px_20px_rgba(0,0,0,0.06)] outline-none placeholder:text-ink-faint focus:border-ink-faint"
-            />
-            {(question || status !== "idle") && (
-              <button
-                type="button"
-                onClick={clear}
-                aria-label="Clear and ask something else"
-                title="Clear (Esc)"
-                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-line/70 text-ink-soft hover:bg-line hover:text-ink"
-              >
-                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-                  <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
+        <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-8 *:pointer-events-auto">
+          <h1
+            className={`font-logo leading-none tracking-[-0.03em] text-jev transition-[font-size] duration-300 ease-out ${
+              answered ? "text-5xl sm:text-[4rem]" : "text-8xl sm:text-[8rem]"
+            }`}
+          >
+            {answered ? (
+              <button type="button" onClick={clear} aria-label="Jev! Start over">
+                Jev!
               </button>
+            ) : (
+              "Jev!"
             )}
-          </div>
-        </form>
-
-        {status === "idle" && (
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {EXAMPLES.map((q) => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                className="rounded-full border border-line bg-white/80 px-3 py-1.5 text-sm text-ink-soft backdrop-blur hover:border-ink-faint hover:text-ink"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div
-          className={`mt-4 flex w-full flex-col items-center gap-3 rounded-3xl px-3 py-3 sm:mt-6 sm:gap-5 ${status === "done" ? "bg-white/85 backdrop-blur-sm" : ""}`}
-          aria-live="polite"
-        >
-          {status === "asking" && <p className="text-ink-soft">Jev is digging through the pile…</p>}
-          {status === "error" && <p className="text-jev">{error}</p>}
-          {status === "blocked" && (
-            <p className="max-w-md text-center text-ink-soft">
-              <span className="font-semibold text-ink">Jev won&apos;t touch that one.</span> It
-              doesn&apos;t guess about abuse or people&apos;s private lives. Ask it something else.
+          </h1>
+          {!answered && (
+            <p className="mt-3 text-center text-base text-pretty text-ink-soft">
+              America’s 100 most famous politicians.<br className="sm:hidden" /> You ask. Jev picks.
             </p>
           )}
-          {status === "done" && total === 0 && (
-            <p className="max-w-md text-center text-ink-soft">
-              {strict ? (
-                <>
-                  <span className="font-semibold text-ink">Jev isn&apos;t sure enough to name anyone.</span>{" "}
-                  For accusations, it only answers when it&apos;s 90% sure.
-                </>
-              ) : (
-                <>
-                  Jev says: <span className="font-semibold text-ink">nobody.</span>
-                </>
-              )}
-            </p>
-          )}
-          {tiers.map((t) => (
-            <section key={t.key} className="flex w-full flex-col items-center">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft">
-                {t.label}
-                <span className="ml-2 font-normal normal-case tracking-normal text-ink-faint">
-                  {t.ids.length}
-                </span>
-              </h2>
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-2">
-                {t.ids.map((id) => {
-                  const { size, names } = slotLayout(t.key, total, narrow);
-                  const f = byId.get(id)!;
-                  return (
-                    <div key={id} className="flex flex-col items-center" style={{ width: names ? Math.max(size, 84) : size }}>
-                      <div
-                        ref={(n) => {
-                          if (n) slotEls.current.set(id, n);
-                          else slotEls.current.delete(id);
-                        }}
-                        style={{ width: size, height: size }}
-                      />
-                      {names && (
-                        <>
-                          <span className="mt-1 text-center text-xs font-medium leading-tight text-ink">{f.name}</span>
-                          <span className="text-[11px] tabular-nums text-ink-faint">
-                            {Math.round((scores[id] ?? 0) * 100)}%
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-          {status === "done" && (
-            <p className="text-center text-xs text-ink-faint">
-              &ldquo;{asked}&rdquo; · Jev’s opinion, not fact. Mad about it?{" "}
-              <span className="font-semibold text-jev">Blame Jev.</span>
-            </p>
-          )}
-        </div>
-      </main>
 
-      {/* Faces share one layer; the physics loop writes their transforms and z-order. */}
-      <div className="pointer-events-none absolute inset-0">
-        {r > 0 && faces.map((f) => (
-          <div
-            key={f.id}
-            ref={(n) => {
-              if (n) faceEls.current.set(f.id, n);
-              else faceEls.current.delete(f.id);
-            }}
-            onPointerEnter={() => setHover(f.id)}
-            onPointerDown={(e) => grab(e, f.id)}
-            onPointerMove={moveDrag}
-            onPointerUp={release}
-            onPointerCancel={release}
-            onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
-            className="pointer-events-auto absolute left-0 top-0 cursor-grab touch-none overflow-hidden rounded-full active:cursor-grabbing bg-line shadow-[0_1px_4px_rgba(0,0,0,0.25)] ring-2 ring-white will-change-transform"
-            style={{
-              width: r * 2,
-              height: r * 2,
-              transform: "translate(-200px, -200px)",
+          <form
+            className={`w-full max-w-xl ${answered ? "mt-4" : "mt-6"}`}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!question.trim()) inputEl.current?.focus();
+              else if (status !== "asking") ask(question);
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={f.img}
-              alt={f.name}
-              draggable={false}
-              loading="eager"
-              className="h-full w-full object-cover"
-              style={{ objectPosition: "50% 22%" }}
-            />
+            <div className="flex h-14 items-center gap-1 rounded-2xl border border-ink/15 bg-paper pl-5 pr-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-ink focus-within:shadow-[0_0_0_3px_rgba(21,21,21,0.08)]">
+              <input
+                ref={inputEl}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") clear();
+                }}
+                maxLength={140}
+                enterKeyHint="go"
+                placeholder="Ask about any of the 100…"
+                aria-label="Ask Jev about politicians"
+                className="h-full min-w-0 flex-1 bg-transparent text-lg text-ink outline-none placeholder:text-ink-faint focus-visible:outline-none"
+              />
+              {(question || answered) && (
+                <button
+                  type="button"
+                  onClick={clear}
+                  aria-label="Clear and start over"
+                  title="Clear (Esc)"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors duration-150 hover:bg-ink/5 hover:text-ink"
+                >
+                  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                    <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+              <button
+                type="submit"
+                aria-disabled={!question.trim() || status === "asking"}
+                className="h-11 shrink-0 rounded-xl bg-jev px-5 text-base font-semibold text-paper transition-[background-color,transform] duration-150 ease-out hover:bg-jev-deep active:scale-[0.97]"
+              >
+                Ask
+              </button>
+            </div>
+          </form>
+
+          {!answered && (
+            <div className="mt-4 flex max-w-xl flex-wrap justify-center gap-2">
+              {EXAMPLES.slice(0, narrow ? 4 : 6).map((q) => (
+                <button key={q} type="button" onClick={() => ask(q)} className={chip}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div
+            aria-live="polite"
+            className={`w-full ${
+              status === "done" || status === "blocked" || status === "error"
+                ? "mt-6 rounded-2xl bg-paper/90 px-3 pb-5 pt-1 backdrop-blur-md"
+                : ""
+            }`}
+          >
+            {status === "asking" && (
+              <p className="mt-8 text-center text-base text-ink-soft">Jev is weighing all 100…</p>
+            )}
+            {status === "error" && (
+              <div className="rise mt-5 flex flex-col items-center gap-3 text-center">
+                <p className="text-base text-ink">{error}</p>
+                <button type="button" onClick={() => ask(asked)} className={chip}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {status === "blocked" && (
+              <p className="rise mx-auto mt-5 max-w-md text-center text-base text-pretty text-ink-soft">
+                <span className="font-semibold text-ink">Jev won’t touch that one.</span> It doesn’t guess
+                about abuse or people’s private lives. Ask it something else.
+              </p>
+            )}
+            {status === "done" && !verdict && (
+              <p className="rise mx-auto mt-5 max-w-md text-center text-base text-pretty text-ink-soft">
+                {mode === "strict" ? (
+                  <>
+                    <span className="font-semibold text-ink">Jev isn’t sure enough to name anyone.</span> For
+                    accusations, it only answers when it’s 90% sure.
+                  </>
+                ) : (
+                  <>
+                    Jev says: <span className="font-semibold text-ink">nobody.</span>
+                  </>
+                )}
+              </p>
+            )}
+
+            {status === "done" && verdict && top && (
+              <section className="flex flex-col items-center pt-4">
+                {slot(top.id, size.hero)}
+                <h2 className="rise mt-4 text-center font-logo text-2xl leading-tight tracking-[-0.01em] text-balance text-ink sm:text-[2rem]">
+                  {top.name}
+                </h2>
+                <p className="rise mt-1 text-center text-base text-pretty text-ink-soft">
+                  {verdict.label} · <span className="tabular-nums text-ink">{pct(scores[top.id])}</span>
+                  {tie && (
+                    <>
+                      , a near tie with {tie.name} <span className="tabular-nums">({pct(scores[tie.id])})</span>
+                    </>
+                  )}
+                </p>
+
+                {others.length > 0 && (
+                  <div className="mt-6 flex w-full flex-col items-center">
+                    <h3 className="text-sm font-medium text-ink-soft">
+                      Also floated up <span className="tabular-nums text-ink-faint">{others.length}</span>
+                    </h3>
+                    <ul className="mt-3 flex max-w-2xl justify-center gap-x-3">
+                      {others.slice(0, size.named).map((id) => (
+                        <li key={id} className="flex w-[76px] flex-col items-center">
+                          {slot(id, Math.max(size.other, narrow ? 48 : 56))}
+                          <span className="mt-1.5 text-center text-xs leading-tight font-medium text-balance text-ink">
+                            {byId.get(id)!.name}
+                          </span>
+                          <span className="text-xs tabular-nums text-ink-faint">{pct(scores[id])}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {others.length > size.named && (
+                      <ul className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2.5">
+                        {others.slice(size.named).map((id) => (
+                          <li key={id}>{slot(id, size.other)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <Share question={asked} text={shareText} />
+                </div>
+                <p className="mt-3 text-center text-xs text-pretty text-ink-faint">
+                  “{asked}” · Jev’s opinion, not fact. Mad about it?{" "}
+                  <span className="font-semibold text-jev">Blame Jev.</span>
+                </p>
+              </section>
+            )}
+
+            {(status === "done" || status === "blocked" || status === "error") && (
+              <div className="mt-6 flex flex-col items-center border-t border-line pt-5">
+                <h3 className="text-sm font-medium text-ink-soft">Ask another</h3>
+                <div className="no-scrollbar -mx-3 mt-3 flex w-[calc(100%+1.5rem)] gap-2 overflow-x-auto px-3 sm:mx-0 sm:w-full sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
+                  {more.slice(0, narrow ? more.length : 4).map((q) => (
+                    <button key={q} type="button" onClick={() => ask(q)} className={chip}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        ))}
+        </main>
+      </div>
+
+      {/* While Jev weighs the pile, a soft band of light passes over it. */}
+      {status === "asking" && (
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-[45%] overflow-hidden motion-reduce:hidden">
+          <div
+            className="h-full w-1/2"
+            style={{
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0.55) 55%, transparent)",
+              animation: "sweep 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Faces share one layer; the physics loop writes their size, position, and z-order. */}
+      <div role="group" aria-label="The pile of 100 politicians. Use arrow keys to move between faces, Enter to make one hop." className="pointer-events-none absolute inset-0">
+        {r > 0 &&
+          faces.map((f) => {
+            const i = pileOrder.indexOf(f);
+            const inPile = i !== -1;
+            return (
+              <div
+                key={f.id}
+                ref={(n) => {
+                  if (n) faceEls.current.set(f.id, n);
+                  else faceEls.current.delete(f.id);
+                }}
+                role={inPile ? "button" : undefined}
+                aria-label={inPile ? `${f.name}, ${f.role}` : undefined}
+                aria-hidden={inPile ? undefined : true}
+                tabIndex={inPile ? (i === Math.min(focusIdx, pileOrder.length - 1) ? 0 : -1) : -1}
+                onKeyDown={inPile ? (e) => onPileKey(e, i) : undefined}
+                onFocus={() => setHover(f.id)}
+                onPointerEnter={(e) => e.pointerType === "mouse" && setHover(f.id)}
+                onPointerDown={(e) => grab(e, f.id)}
+                onPointerMove={moveDrag}
+                onPointerUp={release}
+                onPointerCancel={release}
+                onPointerLeave={(e) => e.pointerType === "mouse" && setHover((h) => (h === f.id ? null : h))}
+                className="pointer-events-auto absolute left-0 top-0 cursor-grab touch-none overflow-hidden rounded-full bg-line shadow-[0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.10)] ring-2 ring-paper transition-[filter,opacity] duration-700 ease-out will-change-transform active:cursor-grabbing"
+                style={{ width: r * 2, height: r * 2, transform: "translate(-200px, -200px)" }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={f.img}
+                  alt=""
+                  draggable={false}
+                  loading="eager"
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: "50% 22%" }}
+                />
+              </div>
+            );
+          })}
       </div>
 
       {hovered && (
-        <div className="pointer-events-none fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full bg-ink px-4 py-2 text-sm text-white shadow-lg">
-          <span className="font-semibold">{hovered.name}</span>
-          <span className="text-white/70"> · {hovered.role}</span>
+        <div className="pointer-events-none fixed bottom-4 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2 truncate rounded-full bg-ink px-4 py-2 text-sm text-paper shadow-[0_2px_4px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.16)]">
+          <span className="font-medium">{hovered.name}</span>
+          <span className="text-paper/70"> · {hovered.role}</span>
           {scores[hovered.id] !== undefined && (
-            <span className="tabular-nums text-white/70"> · {Math.round(scores[hovered.id] * 100)}%</span>
+            <span className="tabular-nums text-paper/70"> · {pct(scores[hovered.id])}</span>
           )}
         </div>
       )}

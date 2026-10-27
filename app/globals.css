@@ -1,20 +1,78 @@
 @import "tailwindcss";
 
-/* Light only, on purpose: white page, red logo, like the campaign signs. */
+/* Light only, on purpose: campaign-sign paper, red wordmark, ink type. */
 @theme inline {
   --color-jev: #e1261c;
+  --color-jev-deep: #b81d15;
   --color-ink: #151515;
   --color-ink-soft: #5b5b5b;
-  --color-ink-faint: #9a9a9a;
-  --color-line: #e6e6e6;
+  --color-ink-faint: #8a8a8a;
+  --color-line: #e6e4df;
+  --color-paper: #fcfbf8;
   --font-sans: var(--font-geist-sans);
   --font-logo: var(--font-archivo-black);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 html,
 body {
-  background: #ffffff;
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   overscroll-behavior: none;
+  caret-color: var(--color-jev);
+}
+
+::selection {
+  background: var(--color-jev);
+  color: var(--color-paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-jev);
+  outline-offset: 3px;
+}
+
+/* Waiting: one soft band of light sweeps across the pile while Jev weighs it. */
+@keyframes sweep {
+  from {
+    transform: translateX(-60%);
+  }
+  to {
+    transform: translateX(160%);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 360ms var(--ease-out) both;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation-name: fade;
+    animation-duration: 160ms;
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
 }

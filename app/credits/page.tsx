@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { politicians } from "@/lib/politicians";
 
-export const metadata: Metadata = { title: "Photo credits — Jev!" };
+export const metadata: Metadata = { title: "Photo credits · Jev!" };
 
 export default function Credits() {
   const sorted = [...politicians].sort((a, b) => a.name.localeCompare(b.name));
