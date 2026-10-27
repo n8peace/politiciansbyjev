@@ -1,4 +1,5 @@
 import { experimental_evaluate as evaluate } from "ai";
+import { unstable_cache } from "next/cache";
 import { politicians } from "@/lib/politicians";
 import { STRICT, type Answer } from "@/lib/tiers";
 
@@ -26,6 +27,7 @@ const CHUNK = 25; // people per yes/no call; chunks run in parallel
 //   risky 0.47-0.77).
 type Sorted = {
   mode: "normal" | "strict" | "out" | "blocked";
+  blocked?: "abuse" | "private";
   shape: "one" | "many";
   bottomOk: boolean;
 };
@@ -85,9 +87,10 @@ async function classify(question: string): Promise<Sorted> {
         : get("crime") + get("bigotry") + get("abuse") + get("private") + get("out") >= 0.5
           ? "strict"
           : "normal";
+  const blocked = mode === "blocked" ? (get("abuse") >= get("private") ? "abuse" : "private") : undefined;
   const bottomOk =
     get("opinion") >= 0.8 && r.answers.light.probability >= LIGHT_MIN && r.answers.harsh.probability < HARSH_MAX;
-  return { mode, shape, bottomOk };
+  return { mode, blocked, shape, bottomOk };
 }
 
 // Every person, judged on their own: "is this person one of the answers?"
@@ -159,10 +162,18 @@ async function pick(question: string) {
 }
 
 const BEST_FLOOR = 0.01; // shares under 1% aren't sent
-const WORST_MIN = 0.12; // the bottom pick has to be a real pick
-const WORST_LEAD = 1.3; // and clearly ahead of the next one
+// The bottom pick has to be a real pick, clearly ahead of the next one.
+// Jev's "worst" choice is noisier than its "best", and at a lower bar it
+// kept landing on the same person (Clarence Thomas for funniest, dancer,
+// karaoke), so it shows only when Jev commits.
+const WORST_MIN = 0.25;
+const WORST_LEAD = 1.5;
 
+// Two layers: this server's memory, then Next's data cache, which every
+// server shares. So a shared link's page and its share card always agree,
+// and a repeat question anywhere costs nothing.
 const cache = new Map<string, Answer>();
+const WEEK = 7 * 24 * 60 * 60;
 
 export const cacheKey = (question: string) =>
   question.trim().toLowerCase().replace(/\s+/g, " ").replace(/[?!.]+$/, "");
@@ -175,11 +186,17 @@ export async function answer(question: string): Promise<Answer> {
   const key = cacheKey(question);
   const hit = cache.get(key);
   if (hit) return hit;
+  const result = await unstable_cache(() => fresh(question), ["answer-v2", key], { revalidate: WEEK })();
+  if (cache.size > 1000) cache.delete(cache.keys().next().value!);
+  cache.set(key, result);
+  return result;
+}
 
+async function fresh(question: string): Promise<Answer> {
   const [sorted, scores, picked] = await Promise.all([classify(question), score(question), pick(question)]);
   let result: Answer;
   if (sorted.mode === "blocked") {
-    result = { blocked: true };
+    result = { blocked: sorted.blocked ?? "private" };
   } else if (sorted.mode === "strict") {
     // Never send scores below the bar, so hovering a face in the pile
     // can't reveal a low-confidence accusation either.
@@ -200,8 +217,5 @@ export async function answer(question: string): Promise<Answer> {
         : undefined;
     result = { mode: "normal", shape: "one", scores, best, ...(worst ? { worst } : {}) };
   }
-
-  if (cache.size > 1000) cache.delete(cache.keys().next().value!);
-  cache.set(key, result);
   return result;
 }

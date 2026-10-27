@@ -14,7 +14,7 @@ export type Tier = {
 };
 
 export type Answer =
-  | { blocked: true }
+  | { blocked: "abuse" | "private" }
   | { mode: "strict" | "out"; scores: Record<string, number> }
   | { mode: "normal"; shape: "many"; scores: Record<string, number> }
   | {
@@ -44,7 +44,7 @@ export const MAX_LIFTED = 24;
 
 export const PICK_MIN = 0.15; // below this, Jev has no favorite
 export const TIE = 0.75; // within 75% of the leader counts as a tie
-export const CLOSE_MIN = 0.04;
+export const CLOSE_MIN = 0.05; // at least 5% of Jev's vote
 export const CLOSE_COUNT = 4;
 
 // Crime and bigotry questions: only name people Jev is very sure about,
@@ -53,7 +53,9 @@ export const STRICT = 0.9;
 
 const desc = (o: Record<string, number>) => Object.entries(o).sort((a, b) => b[1] - a[1]);
 
-export function groupAnswer(a: Exclude<Answer, { blocked: true }>): Grouped {
+export type Answered = Exclude<Answer, { blocked: string }>;
+
+export function groupAnswer(a: Answered): Grouped {
   const ranked = desc(a.scores);
 
   if (a.mode !== "normal") {
@@ -82,7 +84,7 @@ export function groupAnswer(a: Exclude<Answer, { blocked: true }>): Grouped {
       .slice(0, CLOSE_COUNT)
       .map(([id]) => id);
     const tiers: Tier[] = [{ key: "pick", label: top.length > 1 ? "Jev can't split them" : "Jev's pick", ids: top }];
-    if (close.length) tiers.push({ key: "close", label: "Close behind", ids: close });
+    if (close.length) tiers.push({ key: "close", label: "Also in the running", ids: close });
     if (a.worst) tiers.push({ key: "bottom", label: "Bottom of the pile", ids: [a.worst] });
     return { tiers, shown: a.best, weight: a.scores };
   }
@@ -116,7 +118,7 @@ export function groupAnswer(a: Exclude<Answer, { blocked: true }>): Grouped {
 }
 
 // Total people Jev named, before the MAX_LIFTED cap. Used for "and N more".
-export function namedCount(a: Exclude<Answer, { blocked: true }>) {
+export function namedCount(a: Answered) {
   if (a.mode !== "normal" || a.shape !== "many") return null;
   const ranked = desc(a.scores);
   const median = ranked[Math.floor(ranked.length / 2)]?.[1] ?? 0;

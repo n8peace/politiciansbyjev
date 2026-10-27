@@ -2,20 +2,21 @@
 
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { groupAnswer, namedCount, type Answer, type Grouped, type Tier } from "@/lib/tiers";
+import { groupAnswer, namedCount, type Answered, type Grouped, type Tier } from "@/lib/tiers";
 
 export type Face = { id: string; name: string; role: string; img: string };
 
+// No accusation-style examples here: we shouldn't invite the questions that
+// need the 90% bar.
 const EXAMPLES = [
-  "Who's the most corrupt?",
-  "Who's the richest?",
+  "Who's the funniest?",
   "Best president ever",
   "Who would win a fistfight?",
-  "Who's the funniest?",
   "Who has the best hair?",
 ];
 // After the first answer, the chips rotate through these too.
 const MORE = [
+  "Who's the richest?",
   "Who'd survive a zombie apocalypse?",
   "Who's the best dancer?",
   "Who's the smartest?",
@@ -115,7 +116,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const [asked, setAsked] = useState("");
   const [asks, setAsks] = useState(0);
   const [status, setStatus] = useState<Status>("idle");
-  const [answer, setAnswer] = useState<Exclude<Answer, { blocked: true }> | null>(null);
+  const [answer, setAnswer] = useState<Answered | null>(null);
+  const [blockedWhy, setBlockedWhy] = useState<"abuse" | "private">("private");
+  const [history, setHistory] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [hover, setHover] = useState<string | null>(null);
   const [focusId, setFocusId] = useState(faces[0]?.id);
@@ -349,13 +352,11 @@ export default function Pile({ faces }: { faces: Face[] }) {
     const vals = Object.values(wts).sort((a, b) => a - b);
     // Only the top 30% stay in color, so what sank is obvious.
     const cut = Math.max(0.2, vals[Math.floor(vals.length * 0.7)] ?? 0);
-    const bottom = new Set(tiers.find((t) => t.key === "bottom")?.ids ?? []);
     for (const f of faces) {
       const node = faceEls.current.get(f.id);
       if (!node) continue;
       const dim = vals.length > 0 && !next.has(f.id) && (wts[f.id] ?? 0) < cut;
       node.toggleAttribute("data-dim", dim);
-      node.toggleAttribute("data-bottom", bottom.has(f.id));
     }
   }, [tiers, grouped, faces]);
 
@@ -450,7 +451,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
       }
       if (best) {
         setFocusId(best);
-        faceEls.current.get(best)?.focus();
+        faceEls.current.get(best)?.focus({ preventScroll: true });
       }
     },
     [faces, hop],
@@ -459,7 +460,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
   // Desktop: sweeping the mouse through the pile pushes faces aside.
   const lastMouse = useRef<{ x: number; y: number } | null>(null);
   const nudge = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse" || drag.current) return;
+    if (e.pointerType !== "mouse" || drag.current || rmRef.current) return;
     const { x, y } = local(e);
     const prev = lastMouse.current;
     lastMouse.current = { x, y };
@@ -492,6 +493,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
     setQuestion(trimmed);
     setAsked(trimmed);
     setAsks((n) => n + 1);
+    setHistory((h) => (h.includes(trimmed) ? h : [...h, trimmed]));
     setStatus("asking");
     setError("");
     setCopied(false);
@@ -518,11 +520,12 @@ export default function Pile({ faces }: { faces: Face[] }) {
       if (wait > 0) await new Promise((ok) => setTimeout(ok, wait));
       if (id !== reqId.current) return;
       digging.current = false;
-      if ((data as Answer & { blocked?: boolean }).blocked) {
+      if ("blocked" in data) {
+        setBlockedWhy(data.blocked === "abuse" ? "abuse" : "private");
         setStatus("blocked");
         return;
       }
-      const a = data as Exclude<Answer, { blocked: true }>;
+      const a = data as Answered;
       weight.current = groupAnswer(a).weight;
       sortUntil.current = performance.now() + SORT_MS;
       setAnswer(a);
@@ -536,6 +539,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
   }, []);
 
   const inputEl = useRef<HTMLInputElement>(null);
+  const mainEl = useRef<HTMLElement>(null);
   const clear = useCallback(() => {
     reqId.current++;
     digging.current = false;
@@ -548,6 +552,15 @@ export default function Pile({ faces }: { faces: Face[] }) {
     window.history.replaceState(null, "", window.location.pathname);
     inputEl.current?.focus();
   }, []);
+
+  // Escape starts over from anywhere, not just the input.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && status !== "idle") clear();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [status, clear]);
 
   // Shared links (?q=...) ask on load, once the pile has landed.
   useEffect(() => {
@@ -620,9 +633,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
   const hovered = hover ? byId.get(hover) : null;
   const strict = answer?.mode === "strict";
   const settled = status !== "idle";
-  const chips = settled
-    ? POOL.filter((q) => q !== asked).slice((asks * 4) % (POOL.length - 1)).concat(POOL.filter((q) => q !== asked)).slice(0, 4)
-    : EXAMPLES;
+  const fresh = POOL.filter((q) => !history.includes(q));
+  const chips = settled ? fresh.slice((asks * 4) % Math.max(1, fresh.length)).concat(fresh).slice(0, 4) : EXAMPLES;
+  const onePick = answer?.mode === "normal" && answer.shape === "one";
 
   // One sentence for screen readers, since the faces themselves are pictures.
   const summary = tiers
@@ -650,9 +663,9 @@ export default function Pile({ faces }: { faces: Face[] }) {
       return (
         <section key={t.key} className="flex flex-col items-center text-center">
           {slot(f.id, size)}
-          <p className="mt-3 text-xl font-semibold leading-tight tracking-tight text-balance text-ink sm:text-2xl">{f.name}</p>
+          <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight text-balance text-ink sm:text-2xl">{f.name}</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            {t.label} · <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span>
+            {t.label}, with <span className="font-semibold tabular-nums text-jev">{pct(shown[f.id])}</span> of the vote
           </p>
         </section>
       );
@@ -710,15 +723,25 @@ export default function Pile({ faces }: { faces: Face[] }) {
   };
 
   return (
-    <div ref={stage} onPointerMove={nudge} className="relative h-svh w-full overflow-hidden select-none">
-      <main className="no-scrollbar pointer-events-none absolute inset-0 z-20 overflow-y-auto">
+    <div
+      ref={stage}
+      onPointerMove={nudge}
+      onWheel={(e) => {
+        // The column passes clicks through to the pile, so wheel over the
+        // pile scrolls it by hand.
+        const m = mainEl.current;
+        if (m && !m.contains(e.target as Node)) m.scrollTop += e.deltaY;
+      }}
+      className="relative h-svh w-full overflow-clip select-none"
+    >
+      <main ref={mainEl} className="no-scrollbar pointer-events-none absolute inset-0 z-20 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pt-6 pb-40 sm:pt-12">
           <h1
-            className={`font-logo leading-none tracking-tight text-jev transition-[font-size] duration-300 ease-(--ease-out) sm:text-[8rem] ${settled ? "text-[3.75rem]" : "text-[5.5rem]"}`}
+            className={`font-logo leading-none tracking-tight text-jev transition-[font-size] duration-300 ease-(--ease-out) ${settled ? "text-[3.75rem] sm:text-[5rem]" : "text-[5.5rem] sm:text-[8rem]"}`}
           >
             Jev!
           </h1>
-          <p className={`mt-2 text-center text-sm text-ink-soft sm:block sm:text-base ${settled ? "hidden" : ""}`}>
+          <p className={`mt-2 text-center text-sm text-ink-soft sm:text-base ${settled ? "hidden" : ""}`}>
             America&apos;s 100 most famous politicians.<br className="sm:hidden" /> You ask. An AI picks.
           </p>
 
@@ -741,7 +764,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
                 enterKeyHint="go"
                 placeholder="Ask about any of them"
                 aria-label="Ask Jev about politicians"
-                className="h-14 w-full rounded-2xl border border-ink/15 bg-white pr-[6.25rem] pl-5 text-base shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-ink-faint focus:border-ink focus:shadow-[0_0_0_4px_rgba(225,38,28,0.16)] focus-visible:outline-none sm:h-16 sm:text-lg"
+                className="h-14 w-full rounded-2xl border border-ink/15 bg-white pr-[6.25rem] pl-5 text-base shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-ink-faint focus:border-jev/70 focus:shadow-[0_0_0_4px_rgba(225,38,28,0.14)] focus-visible:outline-none sm:h-16 sm:text-lg"
               />
               <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
                 {(question || status !== "idle") && (
@@ -781,11 +804,24 @@ export default function Pile({ faces }: { faces: Face[] }) {
                 Jev is digging through the pile…
               </p>
             )}
-            {status === "error" && <p className="text-center text-jev">{error}</p>}
+            {status === "error" && (
+              <div className="pointer-events-auto flex flex-col items-center gap-3">
+                <p className="text-center text-ink">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => ask(asked)}
+                  className="inline-flex min-h-11 items-center rounded-full border border-ink/15 bg-white px-5 font-medium text-ink transition-[border-color,transform] duration-150 hover:border-ink/40 active:scale-[0.97]"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
             {status === "blocked" && (
               <p className="mx-auto max-w-md text-center text-pretty text-ink-soft">
-                <span className="font-semibold text-ink">Jev won&apos;t touch that one.</span> It
-                doesn&apos;t guess about abuse or people&apos;s private lives. Ask it something else.
+                <span className="font-semibold text-ink">Jev won&apos;t touch that one.</span>{" "}
+                {blockedWhy === "abuse"
+                  ? "It doesn't guess about abuse. Ask it something else."
+                  : "It doesn't guess about people's private lives. Ask it something else."}
               </p>
             )}
             {status === "done" && (
@@ -867,7 +903,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
 
       <a
         href="/credits"
-        className="absolute right-3 bottom-3 z-40 rounded px-1 text-xs text-ink-faint hover:text-ink"
+        className="absolute right-2 bottom-2 z-40 inline-flex min-h-11 items-center rounded-full bg-white/85 px-3 text-xs text-ink-soft backdrop-blur hover:text-ink"
       >
         Photo credits
       </a>
@@ -888,7 +924,7 @@ export default function Pile({ faces }: { faces: Face[] }) {
               }}
               role="button"
               tabIndex={f.id === focusId ? 0 : -1}
-              aria-label={`${f.name}, ${f.role}${shown[f.id] !== undefined ? `, ${pct(shown[f.id])}` : ""}`}
+              aria-label={`${f.name}, ${f.role}${shown[f.id] !== undefined ? `, ${pct(shown[f.id])}${onePick ? " of Jev's vote" : ""}` : ""}`}
               onFocus={() => {
                 setFocusId(f.id);
                 setHover(f.id);
@@ -922,7 +958,11 @@ export default function Pile({ faces }: { faces: Face[] }) {
           <span className="font-semibold">{hovered.name}</span>
           <span className="text-white/70"> · {hovered.role}</span>
           {shown[hovered.id] !== undefined || answer?.mode === "normal" ? (
-            <span className="tabular-nums text-white/70"> · {pct(shown[hovered.id])}</span>
+            <span className="tabular-nums text-white/70">
+              {" "}
+              · {pct(shown[hovered.id])}
+              {onePick ? " of the vote" : ""}
+            </span>
           ) : null}
         </div>
       )}

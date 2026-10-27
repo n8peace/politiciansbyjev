@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (hit) return Response.json(hit);
 
   if (limited(`ask:${clientIp(req)}`, 20)) {
-    return Response.json({ error: "Slow down. Jev needs a breather." }, { status: 429 });
+    return Response.json({ error: "Slow down. Try again in a minute." }, { status: 429 });
   }
 
   try {

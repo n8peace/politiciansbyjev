@@ -46,9 +46,6 @@ input {
   opacity: 0.4;
   filter: grayscale(1);
 }
-.face[data-bottom] {
-  filter: grayscale(1);
-}
 .face:focus-visible {
   outline-width: 3px;
   z-index: 50 !important;

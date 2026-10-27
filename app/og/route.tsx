@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { answer, cached } from "@/lib/answer";
 import { clientIp, limited } from "@/lib/limit";
 import { politicians } from "@/lib/politicians";
-import { groupAnswer, namedCount, type Answer } from "@/lib/tiers";
+import { groupAnswer, namedCount, type Answer, type Answered } from "@/lib/tiers";
 
 // The share card for a question: 1200x630, the same answer the asker saw.
 // Link previews (X, iMessage, Slack) fetch this once; the CDN keeps it.
@@ -164,7 +164,7 @@ async function Home() {
   );
 }
 
-async function Result({ question, a }: { question: string; a: Exclude<Answer, { blocked: true }> }) {
+async function Result({ question, a }: { question: string; a: Answered }) {
   const { tiers, shown } = groupAnswer(a);
   const named = namedCount(a);
 
@@ -199,8 +199,9 @@ async function Result({ question, a }: { question: string; a: Exclude<Answer, { 
                     <div style={{ fontSize: 60, fontWeight: 600, letterSpacing: -1.5, lineHeight: 1.05, maxWidth: 520 }}>
                       {byId.get(hero.ids[0])?.name}
                     </div>
-                    <div style={{ marginTop: 8, fontSize: 40, fontWeight: 600, color: RED }}>
-                      {pct(shown[hero.ids[0]])}
+                    <div style={{ marginTop: 8, display: "flex", alignItems: "baseline", gap: 10 }}>
+                      <div style={{ fontSize: 40, fontWeight: 600, color: RED }}>{pct(shown[hero.ids[0]])}</div>
+                      <div style={{ fontSize: 26, color: SOFT }}>of Jev&apos;s vote</div>
                     </div>
                   </div>
                 )}
@@ -210,7 +211,7 @@ async function Result({ question, a }: { question: string; a: Exclude<Answer, { 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
             {close.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-                <div style={{ fontSize: 22, color: SOFT }}>Close behind</div>
+                <div style={{ fontSize: 22, color: SOFT }}>Also in the running</div>
                 <div style={{ display: "flex", gap: 12 }}>
                   {closeSrcs.map((src, i) => (
                     <Face key={i} src={src} size={84} />
@@ -224,7 +225,7 @@ async function Result({ question, a }: { question: string; a: Exclude<Answer, { 
                   <div style={{ fontSize: 22, color: SOFT }}>Bottom of the pile</div>
                   <div style={{ fontSize: 26, fontWeight: 600 }}>{byId.get(bottom)?.name}</div>
                 </div>
-                <Face src={bottomSrc} size={72} faded />
+                <Face src={bottomSrc} size={72} />
               </div>
             )}
           </div>

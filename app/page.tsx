@@ -11,7 +11,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/">): Promis
   const image = { url: `/og?q=${encodeURIComponent(q)}`, width: 1200, height: 630, alt: `Jev's answer to “${q}”` };
   return {
     title,
-    openGraph: { title, images: [image] },
+    openGraph: { title, type: "website", siteName: "Jev!", images: [image] },
     twitter: { card: "summary_large_image", title, images: [image] },
   };
 }
