@@ -21,22 +21,20 @@ const EXAMPLES = [
 type Pos = { x: number; y: number; a: number; s: number };
 type Status = "idle" | "asking" | "done" | "blocked" | "error";
 
-// Size faces so the settled pile fills about a quarter of the screen.
+// Size faces so the settled pile fills about 30% of the screen.
 function radiusFor(width: number, height: number) {
-  const r = Math.sqrt((width * height * 0.26) / (100 * 3.6));
+  const r = Math.sqrt((width * height * 0.3) / (100 * 3.6));
   return Math.round(Math.min(32, Math.max(14, r)));
 }
 
 // Sizes for faces that float out of the pile. The top pick is the hero; the
 // rest shrink as the crowd grows. Names show for the first few, and every
 // face can be tapped or focused for its name.
-function sizes(narrow: boolean, others: number) {
+function sizes(narrow: boolean) {
   return {
     hero: narrow ? 96 : 136,
     named: narrow ? 3 : 7, // one full row of names
-    // Past this many, the rest of the picks stay in the pile in full color.
-    shown: narrow ? 3 : 28,
-    other: others > 24 ? (narrow ? 32 : 36) : others > 8 ? (narrow ? 38 : 44) : narrow ? 52 : 60,
+    other: narrow ? 48 : 56,
   };
 }
 
@@ -80,6 +78,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const [error, setError] = useState("");
   const [hover, setHover] = useState<Hover | null>(null);
   const [showAll, setShowAll] = useState(false);
+  // Phones keep the runners-up folded so the gray pile stays in view.
+  const [othersOpen, setOthersOpen] = useState(true);
   const [focusIdx, setFocusIdx] = useState(0);
 
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
@@ -92,6 +92,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     reduced.current = prefersReducedMotion();
     setR(radiusFor(el.clientWidth, el.clientHeight));
     setNarrow(el.clientWidth < 640);
+    setOthersOpen(el.clientWidth >= 640);
   }, []);
 
   // Physics: one engine, walls on three sides, faces dropped in from just
@@ -247,9 +248,9 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   useLayoutEffect(() => {
     const e = engine.current;
     if (!e) return;
+    // Only faces with a slot leave the pile; the other picks stay in it, in color.
     const all = verdict?.ids ?? [];
-    const cap = sizes(narrow, all.length - 1);
-    const next = all.slice(0, 1 + cap.shown);
+    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow).named : 0));
     const keep = new Set(next);
     const picked = new Set(all);
     for (const id of launched.current) {
@@ -273,10 +274,12 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
       for (const f of faces) {
         if (picked.has(f.id)) continue;
         const s = scores[f.id];
-        sink.current.set(f.id, s === undefined ? 1 : Math.min(1, Math.max(0, 1 - s / LIKELY)) ** 0.7);
+        // Every miss goes gray; how far it missed only changes how far it fades.
+        const miss = s === undefined ? 1 : Math.min(1, Math.max(0, 1 - s / LIKELY));
+        sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow]);
+  }, [verdict, status, scores, faces, narrow, othersOpen]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -374,6 +377,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     setError("");
     setVerdict(null);
     setShowAll(false);
+    setOthersOpen(stage.current ? stage.current.clientWidth >= 640 : true);
     setHover(null);
     if (history !== "none") {
       const url = new URL(window.location.href);
@@ -463,7 +467,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const hovered = hover ? byId.get(hover.id) : null;
   const top = verdict ? byId.get(verdict.ids[0]) : null;
   const others = verdict ? verdict.ids.slice(1) : [];
-  const size = sizes(narrow, others.length);
+  const size = sizes(narrow);
   const tie = verdict?.tie ? byId.get(verdict.tie) : null;
   const sure = mode !== "out"; // "out" answers come from a checked list, not a Jev guess
   const shareText = top
@@ -515,7 +519,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
         <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-8 *:pointer-events-auto">
           <h1
             className={`font-logo leading-none tracking-[-0.025em] text-jev ${
-              answered ? "text-5xl sm:text-[4rem]" : "text-8xl sm:text-[8rem]"
+              answered ? "text-[2rem]" : "text-8xl sm:text-[8rem]"
             }`}
           >
             {answered ? (
@@ -570,7 +574,11 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
               <button
                 type="submit"
                 aria-disabled={!question.trim() || status === "asking"}
-                className="h-11 shrink-0 rounded-lg bg-jev px-5 text-base font-semibold text-paper transition-[background-color,transform] duration-150 ease-out hover:bg-jev-deep active:scale-[0.97]"
+                className={`h-11 shrink-0 rounded-lg px-5 text-base font-semibold transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97] ${
+                  answered && question.trim() === asked
+                    ? "bg-ink/5 text-ink-soft hover:bg-ink/10 hover:text-ink"
+                    : "bg-jev text-paper hover:bg-jev-deep"
+                }`}
               >
                 Ask
               </button>
@@ -620,7 +628,10 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                     <p className="mt-2 text-base text-ink-soft">Accusations need 90% or better.</p>
                   </>
                 ) : (
-                  <h2 className="text-xl font-semibold tracking-[-0.01em] text-ink">Jev says: nobody.</h2>
+                  <>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-ink">Jev says: nobody.</h2>
+                    <p className="mt-2 text-base text-ink-soft">No one scored high enough to name.</p>
+                  </>
                 )}
               </div>
             )}
@@ -628,23 +639,25 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             {status === "done" && verdict && top && (
               <section className="flex flex-col items-center pt-6">
                 {slot(top.id, size.hero)}
-                <h2 className="rise mt-4 text-center font-logo [animation-delay:240ms] motion-reduce:[animation-delay:0ms] text-2xl leading-tight tracking-[-0.01em] text-balance text-ink sm:text-[2rem]">
+                {/* The answer is the biggest thing on screen: name, then how sure. */}
+                <h2 className="rise mt-5 text-center font-logo text-[2.5rem] leading-none tracking-[-0.02em] text-balance text-ink [animation-delay:240ms] motion-reduce:[animation-delay:0ms] sm:text-[4rem]">
                   {top.name}
                 </h2>
-                <p className="rise mt-1 text-center text-base text-pretty text-ink-soft [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
+                <p className="rise mt-3 flex items-baseline justify-center gap-2 [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
                   {sure ? (
                     <>
-                      {verdict.label} · <span className="tabular-nums text-ink">{pct(scores[top.id])}</span>
-                      {tie && (
-                        <>
-                          , a near tie with {tie.name} <span className="tabular-nums">({pct(scores[tie.id])})</span>
-                        </>
-                      )}
+                      <span className="text-[2rem] leading-none font-semibold tracking-[-0.02em] text-ink">{pct(scores[top.id])}</span>
+                      <span className="text-base text-ink-soft">{verdict.label}</span>
                     </>
                   ) : (
-                    "On the public record"
+                    <span className="text-base text-ink-soft">On the public record</span>
                   )}
                 </p>
+                {sure && tie && (
+                  <p className="rise mt-1 text-center text-sm text-ink-soft [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
+                    A near tie with {tie.name} at {pct(scores[tie.id])}
+                  </p>
+                )}
 
                 <div className="mt-5">
                   <Share question={asked} text={shareText} />
@@ -652,13 +665,22 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 <p className="mt-3 text-center text-xs text-ink-soft">
                   {sure ? (
                     <>
-                      “{asked}” · Jev’s opinion, not fact. Mad about it? <span className="font-semibold text-jev-deep">Blame Jev.</span>
+                      “{asked}” · Jev’s opinion, not fact. Mad about it? <span className="font-semibold text-ink">Blame Jev.</span>
                     </>
                   ) : (
                     <>Answered only from politicians who have said so publicly.</>
                   )}
                 </p>
-                {others.length > 0 && (
+                {others.length > 0 && !othersOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setOthersOpen(true)}
+                    className="mt-6 inline-flex h-11 items-center gap-1 rounded-full px-4 text-sm font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
+                  >
+                    See who else floated up ({others.length})
+                  </button>
+                )}
+                {others.length > 0 && othersOpen && (
                   <div className="mt-8 flex w-full flex-col items-center">
                     <h3 className="text-sm font-medium text-ink-soft">
                       Also floated up <span className="tabular-nums">{others.length}</span>
@@ -666,7 +688,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                     <ul className="mt-4 flex max-w-2xl justify-center gap-x-3">
                       {others.slice(0, size.named).map((id) => (
                         <li key={id} className="flex w-[76px] flex-col items-center">
-                          {slot(id, Math.max(size.other, narrow ? 48 : 56))}
+                          {slot(id, size.other)}
                           <span className="mt-2 text-center text-xs leading-tight font-medium text-balance text-ink">
                             {byId.get(id)!.name}
                           </span>
@@ -676,13 +698,6 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                     </ul>
                     {others.length > size.named && (
                       <>
-                        {size.shown > size.named && (
-                          <ul aria-hidden className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
-                            {others.slice(size.named, size.shown).map((id) => (
-                              <li key={id}>{slot(id, size.other, false)}</li>
-                            ))}
-                          </ul>
-                        )}
                         {/* The names are the answer, so every pick is listed, not just pictured. */}
                         <ul className="mt-4 flex max-w-xl flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-ink-soft">
                           {(showAll ? others.slice(size.named) : others.slice(size.named, size.named + (narrow ? 6 : 12))).map((id) => (
