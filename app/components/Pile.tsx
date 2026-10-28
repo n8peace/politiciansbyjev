@@ -2,6 +2,7 @@
 
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { track } from "@vercel/analytics";
 import Share from "@/app/components/Share";
 import { EXAMPLES } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
@@ -406,7 +407,11 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     lastTouchY.current = y;
   };
 
-  const ask = useCallback(async (q: string, history: "push" | "replace" | "none" = "push") => {
+  // Where an ask came from, for the "Ask" count (Jev's north star). The
+  // question text itself is never sent.
+  type Source = "typed" | "example" | "link" | "back" | "retry";
+
+  const ask = useCallback(async (q: string, history: "push" | "replace" | "none" = "push", source: Source = "typed") => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setQuestion(trimmed);
@@ -435,16 +440,20 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
       if (!res.ok) throw new Error(data.error ?? "Jev didn’t answer.");
       if (data.blocked) {
         setStatus("blocked");
+        track("Ask", { source, result: "refused" });
         return;
       }
       setMode(data.mode);
       setKind(data.kind);
       setScores(data.scores);
-      setVerdict(verdictFor(data.scores, data.mode as Mode));
+      const v = verdictFor(data.scores, data.mode as Mode);
+      setVerdict(v);
       setStatus("done");
+      track("Ask", { source, result: v ? "answered" : "nobody" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Jev didn’t answer.");
       setStatus("error");
+      track("Ask", { source, result: "error" });
     }
   }, []);
 
@@ -463,7 +472,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   useEffect(() => {
     const onPop = () => {
       const q = new URLSearchParams(window.location.search).get("q");
-      if (q) ask(q, "none");
+      if (q) ask(q, "none", "back");
       else clear(false);
     };
     window.addEventListener("popstate", onPop);
@@ -474,7 +483,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   // usually cached, so this is quick.
   useEffect(() => {
     if (!initialQuestion) return;
-    const t = setTimeout(() => ask(initialQuestion, "replace"), prefersReducedMotion() ? 0 : 900);
+    const t = setTimeout(() => ask(initialQuestion, "replace", "link"), prefersReducedMotion() ? 0 : 900);
     return () => clearTimeout(t);
   }, [ask, initialQuestion]);
 
@@ -643,7 +652,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             // examples never run into the pile on short screens.
             <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
               {EXAMPLES.slice(0, narrow ? EXAMPLES.length : 6).map((q) => (
-                <button key={q} type="button" onClick={() => ask(q)} className={chip}>
+                <button key={q} type="button" onClick={() => ask(q, "push", "example")} className={chip}>
                   {q}
                 </button>
               ))}
@@ -664,7 +673,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             {status === "error" && (
               <div className="rise flex flex-col items-center gap-3 pt-6 text-center">
                 <h2 className="text-base font-semibold text-ink">{error}</h2>
-                <button type="button" onClick={() => ask(asked, "none")} className={chip}>
+                <button type="button" onClick={() => ask(asked, "none", "retry")} className={chip}>
                   Try again
                 </button>
               </div>
@@ -791,7 +800,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 <h3 className="text-sm font-medium text-ink-soft">Ask another</h3>
                 <div className="no-scrollbar -mx-4 mt-3 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
                   {more.slice(0, narrow ? more.length : 3).map((q) => (
-                    <button key={q} type="button" onClick={() => ask(q)} className={chip}>
+                    <button key={q} type="button" onClick={() => ask(q, "push", "example")} className={chip}>
                       {q}
                     </button>
                   ))}
