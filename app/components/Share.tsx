@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@vercel/analytics";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 // Share the verdict. Phones get the native share sheet (with the result card
@@ -34,10 +35,15 @@ export default function Share({ question, text }: { question: string; text: stri
     return () => clearTimeout(t);
   }, [copied]);
 
+  // One event per share, tagged only with how it was shared. No question
+  // text or anything else a visitor typed is sent.
+  const shared = (method: "native" | "copy" | "x" | "image") => track("Share", { method });
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      shared("copy");
     } catch {
       window.prompt("Copy this link", url);
     }
@@ -50,6 +56,7 @@ export default function Share({ question, text }: { question: string; text: stri
       } else {
         await navigator.share({ title: "Jev!", text, url });
       }
+      shared("native");
     } catch (err) {
       if ((err as Error)?.name !== "AbortError") copy();
     }
@@ -76,12 +83,13 @@ export default function Share({ question, text }: { question: string; text: stri
           href={`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => shared("x")}
           className={quiet}
         >
           Post on X
         </a>
       )}
-      <a href={image} download={`jev-${slug(question)}.jpg`} className={quiet}>
+      <a href={image} download={`jev-${slug(question)}.jpg`} onClick={() => shared("image")} className={quiet}>
         Save image
       </a>
     </div>

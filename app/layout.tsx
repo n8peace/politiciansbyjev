@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Geist } from "next/font/google";
 import { DESCRIPTION, JEV_URL, KEYWORDS, REPO_URL, SITE_NAME, SITE_URL, TITLE } from "@/lib/site";
+import SiteAnalytics from "@/app/components/SiteAnalytics";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         {children}
+        <SiteAnalytics />
       </body>
     </html>
   );
