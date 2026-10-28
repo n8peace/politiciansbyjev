@@ -18,6 +18,6 @@ export async function POST(req: Request) {
     return Response.json(await getAnswer(question));
   } catch (err) {
     console.error(err);
-    return Response.json({ error: "Jev didn't answer. Try again." }, { status: 502 });
+    return Response.json({ error: "Jev didn’t answer." }, { status: 502 });
   }
 }

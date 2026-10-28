@@ -74,6 +74,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const [status, setStatus] = useState<Status>("idle");
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [mode, setMode] = useState<Mode>("normal");
+  const [kind, setKind] = useState<string>("opinion");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [hover, setHover] = useState<Hover | null>(null);
@@ -367,6 +368,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     [r],
   );
 
+  const inputEl = useRef<HTMLInputElement>(null);
+
   // Each question gets its own history entry, so Back steps to the last one.
   const ask = useCallback(async (q: string, history: "push" | "replace" | "none" = "push") => {
     const trimmed = q.trim();
@@ -376,6 +379,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     setStatus("asking");
     setError("");
     setVerdict(null);
+    if (matchMedia("(pointer: coarse)").matches) inputEl.current?.blur();
     setShowAll(false);
     setOthersOpen(stage.current ? stage.current.clientWidth >= 640 : true);
     setHover(null);
@@ -393,22 +397,22 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
         body: JSON.stringify({ question: trimmed }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Jev didn't answer.");
+      if (!res.ok) throw new Error(data.error ?? "Jev didn’t answer.");
       if (data.blocked) {
         setStatus("blocked");
         return;
       }
       setMode(data.mode);
+      setKind(data.kind);
       setScores(data.scores);
       setVerdict(verdictFor(data.scores, data.mode as Mode));
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Jev didn't answer.");
+      setError(err instanceof Error ? err.message : "Jev didn’t answer.");
       setStatus("error");
     }
   }, []);
 
-  const inputEl = useRef<HTMLInputElement>(null);
   const clear = useCallback((history = true) => {
     setQuestion("");
     setAsked("");
@@ -640,7 +644,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
               <section className="flex flex-col items-center pt-6">
                 {slot(top.id, size.hero)}
                 {/* The answer is the biggest thing on screen: name, then how sure. */}
-                <h2 className="rise mt-5 text-center font-logo text-[2.5rem] leading-none tracking-[-0.02em] text-balance text-ink [animation-delay:240ms] motion-reduce:[animation-delay:0ms] sm:text-[4rem]">
+                <h2 className="rise mt-5 text-center font-logo text-5xl leading-none tracking-[-0.02em] text-balance text-ink [animation-delay:240ms] motion-reduce:[animation-delay:0ms] sm:text-[4rem]">
                   {top.name}
                 </h2>
                 <p className="rise mt-3 flex items-baseline justify-center gap-2 [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
@@ -655,7 +659,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 </p>
                 {sure && tie && (
                   <p className="rise mt-1 text-center text-sm text-ink-soft [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
-                    A near tie with {tie.name} at {pct(scores[tie.id])}
+                    {pct(scores[tie.id]) === pct(scores[top.id]) ? "Tied with" : "A near tie with"} {tie.name} at{" "}
+                    {pct(scores[tie.id])}
                   </p>
                 )}
 
@@ -665,7 +670,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 <p className="mt-3 text-center text-xs text-ink-soft">
                   {sure ? (
                     <>
-                      “{asked}” · Jev’s opinion, not fact. Mad about it? <span className="font-semibold text-ink">Blame Jev.</span>
+                      “{asked}” · {kind === "fact" ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}{" "}
+                      Mad about it? <span className="font-semibold text-ink">Blame Jev.</span>
                     </>
                   ) : (
                     <>Answered only from politicians who have said so publicly.</>
@@ -782,6 +788,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 tabIndex={inPile ? (i === Math.min(focusIdx, pileOrder.length - 1) ? 0 : -1) : -1}
                 onKeyDown={inPile ? (e) => onPileKey(e, i) : undefined}
                 onFocus={(e) => setHover(anchor(f.id, e.currentTarget))}
+                onBlur={() => setHover((h) => (h?.id === f.id ? null : h))}
                 onPointerEnter={(e) => e.pointerType === "mouse" && setHover(anchor(f.id, e.currentTarget))}
                 onPointerDown={(e) => grab(e, f.id)}
                 onPointerMove={moveDrag}

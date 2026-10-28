@@ -129,7 +129,7 @@ async function home() {
   );
 }
 
-async function plain(line: string) {
+async function plain(line: string, note?: string) {
   return (
     <Frame strip={await pileStrip(line, [])}>
       <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
@@ -138,12 +138,13 @@ async function plain(line: string) {
           <Site />
         </div>
         <div style={{ marginTop: 96, fontSize: 64, color: INK, fontWeight: 600, letterSpacing: -1.5, lineHeight: 1.1 }}>{line}</div>
+        {note && <div style={{ marginTop: 16, fontSize: 32, color: SOFT }}>{note}</div>}
       </div>
     </Frame>
   );
 }
 
-async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean) {
+async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean, fact: boolean) {
   const top = byId.get(v.ids[0])!;
   const qSize = question.length > 60 ? 30 : 38;
   return (
@@ -174,7 +175,7 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
             : "On the public record"}
         </div>
         <div style={{ marginTop: 8, fontSize: 22, color: SOFT }}>
-          {sure ? "Jev’s opinion, not fact." : "From what they have said publicly."}
+          {!sure ? "From what they have said publicly." : fact ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}
         </div>
       </div>
       <Face src={await img("", top.id)} size={300} ring={8} lift />
@@ -196,8 +197,8 @@ export async function GET(req: Request) {
     else if ("blocked" in a) body = await plain("Jev won’t touch that one.");
     else {
       const v = verdictFor(a.scores, a.mode);
-      if (v) body = await verdictCard(q, a.scores, v, a.mode !== "out");
-      else if (a.mode === "strict") body = await plain("Jev isn’t sure enough to name anyone.");
+      if (v) body = await verdictCard(q, a.scores, v, a.mode !== "out", a.kind === "fact");
+      else if (a.mode === "strict") body = await plain("Jev isn’t sure enough to name anyone.", "Accusations need 90% or better.");
       else body = await plain("Jev says: nobody.");
     }
   }

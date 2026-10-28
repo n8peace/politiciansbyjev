@@ -36,7 +36,7 @@ export function verdictFor(scores: Record<string, number>, mode: Mode): Verdict 
     label = top >= SURE ? "Jev is sure" : "Jev thinks so";
     if (!ids.length) {
       ids = ranked.filter(([, p]) => p >= GUESS_FLOOR).slice(0, GUESS_COUNT).map(([id]) => id);
-      label = "Jev's best guess";
+      label = "Jev’s best guess";
     }
   }
   if (!ids.length) return null;

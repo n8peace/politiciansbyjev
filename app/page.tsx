@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Pile from "@/app/components/Pile";
 import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { politicians, faceSrc, faceSmallSrc } from "@/lib/politicians";
-import { verdictFor } from "@/lib/verdict";
+import { pct, verdictFor } from "@/lib/verdict";
 
 type Props = { searchParams: Promise<{ q?: string | string[] }> };
 
@@ -16,13 +16,25 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (!q) return { openGraph: { images: "/og" }, twitter: { card: "summary_large_image", images: "/og" } };
 
   const a = await getAnswer(q).catch(() => null);
-  const named = a && !("blocked" in a) && verdictFor(a.scores, a.mode);
-  const title = named ? `“${q}” · Jev!` : "Jev! · Politicians by Jev";
+  const v = a && !("blocked" in a) ? verdictFor(a.scores, a.mode) : null;
+  const top = v && politicians.find((p) => p.id === v.ids[0]);
+  const title = top ? `Jev says ${top.name} · “${q}”` : "Jev! · Politicians by Jev";
+  const description =
+    top && a && !("blocked" in a)
+      ? [
+          a.mode === "out" ? "On the public record" : `${pct(a.scores[top.id])} sure`,
+          v.ids.length > 1 ? `${v.ids.length - 1} more floated up` : "",
+          "Blame Jev.",
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : DESCRIPTION;
   const image = `/og?q=${encodeURIComponent(q)}`;
   return {
     title,
-    openGraph: { title, description: DESCRIPTION, images: image },
-    twitter: { card: "summary_large_image", title, description: DESCRIPTION, images: image },
+    description,
+    openGraph: { title, description, images: image },
+    twitter: { card: "summary_large_image", title, description, images: image },
   };
 }
 
