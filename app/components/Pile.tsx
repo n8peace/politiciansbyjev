@@ -19,12 +19,14 @@ function radiusFor(width: number, height: number) {
 }
 
 // Sizes for faces that float out of the pile. The top pick is the hero; the
-// rest shrink as the crowd grows. Names show for the first few, and every
-// face can be tapped or focused for its name.
-function sizes(narrow: boolean) {
+// named runners-up fill exactly one row of the card at the current width.
+function sizes(narrow: boolean, width: number) {
+  // Card inner width is the column (max 768) minus 52px of padding; each
+  // named face takes 76px plus a 12px gap.
+  const fit = Math.floor((Math.min(width, 768) - 52) / 88);
   return {
     hero: narrow ? 96 : 136,
-    named: narrow ? 3 : 7, // one full row of names
+    named: Math.max(3, Math.min(7, fit)),
     other: narrow ? 48 : 56,
   };
 }
@@ -54,12 +56,24 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const launched = useRef(new Set<string>());
   // How much each pile face has "sunk" (0 = full color, 1 = gray), by score.
   const sink = useRef(new Map<string, number>());
-  const drag = useRef<{ id: string; x: number; y: number; vx: number; vy: number; t: number; moved: number } | null>(null);
+  // `scroll` marks a touch on the pile while there's an answer to scroll: it
+  // scrolls the answer instead of dragging, and a tap still makes the face hop.
+  const drag = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    t: number;
+    moved: number;
+    scroll: boolean;
+  } | null>(null);
   const engine = useRef<Matter.Engine | null>(null);
   const reduced = useRef(false);
 
   const [r, setR] = useState(0);
   const [narrow, setNarrow] = useState(false);
+  const [width, setWidth] = useState(1024);
   const [question, setQuestion] = useState(initialQuestion);
   const [asked, setAsked] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -84,7 +98,14 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     reduced.current = prefersReducedMotion();
     setR(radiusFor(el.clientWidth, el.clientHeight));
     setNarrow(el.clientWidth < 640);
+    setWidth(el.clientWidth);
     setOthersOpen(el.clientWidth >= 640);
+    const onResize = () => {
+      setWidth(el.clientWidth);
+      setNarrow(el.clientWidth < 640);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   // Physics: one engine, walls on three sides, faces dropped in from just
@@ -159,7 +180,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
 
       while (bank >= STEP) {
         const d = drag.current;
-        if (d) {
+        if (d && !d.scroll) {
           // Pull the held face toward the pointer by velocity, so it still
           // shoves the faces it runs into.
           const b = bodies.current.get(d.id)!;
@@ -242,7 +263,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     if (!e) return;
     // Only faces with a slot leave the pile; the other picks stay in it, in color.
     const all = verdict?.ids ?? [];
-    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow).named : 0));
+    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
     const keep = new Set(next);
     const picked = new Set(all);
     for (const id of launched.current) {
@@ -271,7 +292,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
         sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow, othersOpen]);
+  }, [verdict, status, scores, faces, narrow, width, othersOpen]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -294,10 +315,12 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     if (launched.current.has(id)) return;
     const b = bodies.current.get(id);
     if (!b) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    const col = scroller.current;
+    const scroll = e.pointerType === "touch" && !!col && col.scrollHeight > col.clientHeight + 4;
+    if (!scroll) e.currentTarget.setPointerCapture(e.pointerId);
     Matter.Sleeping.set(b, false);
     const { x, y } = local(e);
-    drag.current = { id, x, y, vx: 0, vy: 0, t: performance.now(), moved: 0 };
+    drag.current = { id, x, y, vx: 0, vy: 0, t: performance.now(), moved: 0, scroll };
   }, []);
 
   const moveDrag = useCallback((e: React.PointerEvent) => {
@@ -319,7 +342,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     const d = drag.current;
     if (!d) return;
     drag.current = null;
-    if (d.moved < 6) {
+    if (d.moved < 6 || d.scroll) {
+      if (d.scroll && d.moved >= 6) return;
       hop(d.id);
       return;
     }
@@ -362,6 +386,26 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const inputEl = useRef<HTMLInputElement>(null);
 
   // Each question gets its own history entry, so Back steps to the last one.
+  // The results column scrolls, but the pile sits on top of it at the edges.
+  // Wheel and swipe gestures that start outside the column still scroll it,
+  // unless they're dragging a face.
+  const scrollFromAnywhere = (e: React.WheelEvent) => {
+    const col = scroller.current;
+    if (col && !col.contains(e.target as Node)) col.scrollBy({ top: e.deltaY });
+  };
+  const lastTouchY = useRef<number | null>(null);
+  const touchScroll = (e: React.TouchEvent) => {
+    const col = scroller.current;
+    const y = e.touches[0]?.clientY;
+    const dragging = drag.current && !drag.current.scroll;
+    if (!col || y === undefined || col.contains(e.target as Node) || dragging) {
+      lastTouchY.current = null;
+      return;
+    }
+    if (e.type === "touchmove" && lastTouchY.current !== null) col.scrollBy({ top: lastTouchY.current - y });
+    lastTouchY.current = y;
+  };
+
   const ask = useCallback(async (q: string, history: "push" | "replace" | "none" = "push") => {
     const trimmed = q.trim();
     if (!trimmed) return;
@@ -462,7 +506,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const hovered = hover ? byId.get(hover.id) : null;
   const top = verdict ? byId.get(verdict.ids[0]) : null;
   const others = verdict ? verdict.ids.slice(1) : [];
-  const size = sizes(narrow);
+  const size = sizes(narrow, width);
   const tie = verdict?.tie ? byId.get(verdict.tie) : null;
   const sure = mode !== "out"; // "out" answers come from a checked list, not a Jev guess
   const shareText = top
@@ -494,7 +538,14 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     "inline-flex h-11 shrink-0 items-center rounded-full border border-line bg-paper/90 px-4 text-sm text-ink-soft transition-[color,border-color,transform] duration-150 ease-out hover:border-ink/30 hover:text-ink active:scale-[0.97]";
 
   return (
-    <div ref={stage} onPointerMove={nudge} className="relative h-svh w-full overflow-hidden select-none">
+    <div
+      ref={stage}
+      onPointerMove={nudge}
+      onWheel={scrollFromAnywhere}
+      onTouchStart={touchScroll}
+      onTouchMove={touchScroll}
+      className="relative h-svh w-full overflow-hidden select-none"
+    >
       {/* The column scrolls when a big verdict outgrows the screen. It lets
           pointer events fall through to the pile except on its own content. */}
       <div
@@ -588,8 +639,10 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
           </form>
 
           {!answered && (
-            <div className="mt-4 flex max-w-xl flex-wrap justify-center gap-2">
-              {EXAMPLES.slice(0, narrow ? 4 : 6).map((q) => (
+            // Phones get one swipeable row, the same as under an answer, so the
+            // examples never run into the pile on short screens.
+            <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
+              {EXAMPLES.slice(0, narrow ? EXAMPLES.length : 6).map((q) => (
                 <button key={q} type="button" onClick={() => ask(q)} className={chip}>
                   {q}
                 </button>
@@ -694,7 +747,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                     </h3>
                     <ul className="mt-4 flex max-w-2xl justify-center gap-x-3">
                       {others.slice(0, size.named).map((id) => (
-                        <li key={id} className="flex w-[76px] flex-col items-center">
+                        <li key={id} className="flex w-[76px] shrink-0 flex-col items-center">
                           {slot(id, size.other)}
                           <span className="mt-2 text-center text-xs leading-tight font-medium text-balance text-ink">
                             {byId.get(id)!.name}
