@@ -23,14 +23,21 @@ body {
   caret-color: var(--color-jev);
 }
 
+body {
+  font-variant-numeric: tabular-nums;
+}
+
 ::selection {
   background: var(--color-jev);
   color: var(--color-paper);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-jev);
-  outline-offset: 3px;
+/* In the base layer so a component's own focus treatment can override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-jev);
+    outline-offset: 3px;
+  }
 }
 
 /* Waiting: one soft band of light sweeps across the pile while Jev weighs it. */

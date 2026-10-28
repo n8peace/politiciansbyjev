@@ -41,8 +41,11 @@ for (const p of people) {
   }
   await writeFile(out, Buffer.from(await res.arrayBuffer()));
   execFileSync("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "80", "-Z", String(WIDTH), out, "--out", out], { stdio: "ignore" });
-  // A small copy for the pile, where faces are 30 to 64px.
-  execFileSync("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "78", "-Z", "140", out, "--out", `public/faces/sm/${p.id}.jpg`], { stdio: "ignore" });
+  // A small copy for the pile, where faces are 30 to 64px, and a gray one
+  // for the pile strip on share cards (the card renderer can't filter).
+  const sm = `public/faces/sm/${p.id}.jpg`;
+  execFileSync("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "78", "-Z", "140", out, "--out", sm], { stdio: "ignore" });
+  execFileSync("magick", [sm, "-colorspace", "Gray", "-level", "0%,100%,1.08", "-quality", "78", `public/faces/gray/${p.id}.jpg`]);
   await new Promise((r) => setTimeout(r, 200));
 }
 console.log(`done, ${failed} failed`);

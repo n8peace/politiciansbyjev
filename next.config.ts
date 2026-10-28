@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/og": [
       "./public/faces/*.jpg",
+      "./public/faces/sm/*.jpg",
+      "./public/faces/gray/*.jpg",
       "./node_modules/@fontsource/archivo-black/files/archivo-black-latin-400-normal.woff",
       "./node_modules/@fontsource/geist-sans/files/geist-sans-latin-{400,500,600}-normal.woff",
     ],

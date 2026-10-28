@@ -32,10 +32,10 @@ function radiusFor(width: number, height: number) {
 // face can be tapped or focused for its name.
 function sizes(narrow: boolean, others: number) {
   return {
-    hero: narrow ? 104 : 136,
+    hero: narrow ? 96 : 136,
     named: narrow ? 3 : 7, // one full row of names
     // Past this many, the rest of the picks stay in the pile in full color.
-    shown: narrow ? 14 : 28,
+    shown: narrow ? 3 : 28,
     other: others > 24 ? (narrow ? 32 : 36) : others > 8 ? (narrow ? 38 : 44) : narrow ? 52 : 60,
   };
 }
@@ -514,7 +514,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
 
         <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-8 *:pointer-events-auto">
           <h1
-            className={`font-logo leading-none tracking-[-0.03em] text-jev ${
+            className={`font-logo leading-none tracking-[-0.025em] text-jev ${
               answered ? "text-5xl sm:text-[4rem]" : "text-8xl sm:text-[8rem]"
             }`}
           >
@@ -540,7 +540,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
               else if (status !== "asking") ask(question);
             }}
           >
-            <div className="flex h-14 items-center gap-1 rounded-2xl border border-ink/15 bg-paper pl-4 pr-2 transition-[border-color,box-shadow] duration-150 focus-within:border-ink focus-within:shadow-[0_0_0_3px_rgba(21,21,21,0.08)]">
+            <div className="flex h-14 items-center gap-1 rounded-2xl border border-ink/12 bg-paper pl-4 pr-2 transition-[border-color,box-shadow] duration-150 has-[input:focus-visible]:border-jev has-[input:focus-visible]:shadow-[0_0_0_1px_var(--color-jev)]">
               <input
                 ref={inputEl}
                 value={question}
@@ -628,10 +628,10 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             {status === "done" && verdict && top && (
               <section className="flex flex-col items-center pt-6">
                 {slot(top.id, size.hero)}
-                <h2 className="rise mt-4 text-center font-logo text-2xl leading-tight tracking-[-0.01em] text-balance text-ink sm:text-[2rem]">
+                <h2 className="rise mt-4 text-center font-logo [animation-delay:240ms] motion-reduce:[animation-delay:0ms] text-2xl leading-tight tracking-[-0.01em] text-balance text-ink sm:text-[2rem]">
                   {top.name}
                 </h2>
-                <p className="rise mt-1 text-center text-base text-pretty text-ink-soft">
+                <p className="rise mt-1 text-center text-base text-pretty text-ink-soft [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
                   {sure ? (
                     <>
                       {verdict.label} · <span className="tabular-nums text-ink">{pct(scores[top.id])}</span>
@@ -646,6 +646,18 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                   )}
                 </p>
 
+                <div className="mt-5">
+                  <Share question={asked} text={shareText} />
+                </div>
+                <p className="mt-3 text-center text-xs text-ink-soft">
+                  {sure ? (
+                    <>
+                      “{asked}” · Jev’s opinion, not fact. Mad about it? <span className="font-semibold text-jev-deep">Blame Jev.</span>
+                    </>
+                  ) : (
+                    <>Answered only from politicians who have said so publicly.</>
+                  )}
+                </p>
                 {others.length > 0 && (
                   <div className="mt-8 flex w-full flex-col items-center">
                     <h3 className="text-sm font-medium text-ink-soft">
@@ -664,60 +676,46 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                     </ul>
                     {others.length > size.named && (
                       <>
-                        <ul aria-hidden className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
-                          {others.slice(size.named, size.shown).map((id) => (
-                            <li key={id}>{slot(id, size.other, false)}</li>
-                          ))}
-                        </ul>
+                        {size.shown > size.named && (
+                          <ul aria-hidden className="mt-4 flex max-w-2xl flex-wrap justify-center gap-2">
+                            {others.slice(size.named, size.shown).map((id) => (
+                              <li key={id}>{slot(id, size.other, false)}</li>
+                            ))}
+                          </ul>
+                        )}
                         {/* The names are the answer, so every pick is listed, not just pictured. */}
-                        <p className="mt-4 max-w-xl text-center text-sm leading-relaxed text-pretty text-ink-soft">
-                          {(showAll ? others.slice(size.named) : others.slice(size.named, size.named + (narrow ? 6 : 12))).map(
-                            (id, i) => (
-                              <span key={id}>
-                                {i > 0 && " · "}
-                                <span className="text-ink">{byId.get(id)!.name}</span>
-                                {sure && <span className="tabular-nums"> {pct(scores[id])}</span>}
-                              </span>
-                            ),
-                          )}
+                        <ul className="mt-4 flex max-w-xl flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-ink-soft">
+                          {(showAll ? others.slice(size.named) : others.slice(size.named, size.named + (narrow ? 6 : 12))).map((id) => (
+                            <li key={id} className="whitespace-nowrap">
+                              <span className="text-ink">{byId.get(id)!.name}</span>
+                              {sure && <span> {pct(scores[id])}</span>}
+                            </li>
+                          ))}
                           {!showAll && others.length - size.named > (narrow ? 6 : 12) && (
-                            <>
-                              {" "}
+                            <li>
                               <button
                                 type="button"
                                 onClick={() => setShowAll(true)}
-                                className="inline-flex min-h-11 items-center px-1 font-medium text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
+                                className="-my-3 inline-flex min-h-11 items-center font-medium text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink"
                               >
                                 and {others.length - size.named - (narrow ? 6 : 12)} more
                               </button>
-                            </>
+                            </li>
                           )}
-                        </p>
+                        </ul>
                       </>
                     )}
                   </div>
                 )}
 
-                <div className="mt-8">
-                  <Share question={asked} text={shareText} />
-                </div>
-                <p className="mt-3 text-center text-xs text-ink-soft">
-                  {sure ? (
-                    <>
-                      “{asked}” · Jev’s opinion, not fact. Mad about it? <span className="font-semibold text-jev">Blame Jev.</span>
-                    </>
-                  ) : (
-                    <>Answered only from politicians who have said so publicly.</>
-                  )}
-                </p>
               </section>
             )}
 
             {(status === "done" || status === "blocked" || status === "error") && (
               <div className="mt-6 flex flex-col items-center border-t border-line pt-5">
                 <h3 className="text-sm font-medium text-ink-soft">Ask another</h3>
-                <div className="no-scrollbar -mx-4 mt-3 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 sm:mx-0 sm:w-full sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0">
-                  {more.slice(0, narrow ? more.length : 4).map((q) => (
+                <div className="no-scrollbar -mx-4 mt-3 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
+                  {more.slice(0, narrow ? more.length : 3).map((q) => (
                     <button key={q} type="button" onClick={() => ask(q)} className={chip}>
                       {q}
                     </button>

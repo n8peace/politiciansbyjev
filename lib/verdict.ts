@@ -5,7 +5,7 @@
 
 export const SURE = 0.8; // Jev is confident this person fits
 export const LIKELY = 0.55; // more likely yes than no, with a margin
-export const GUESS_FLOOR = 0.2; // below this, a "best guess" is just noise
+export const GUESS_FLOOR = 0.4; // below this, a "best guess" is just noise ("asdfgh" tops out near 0.26)
 export const GUESS_COUNT = 3;
 export const STRICT = 0.9; // crime and bigotry: only people Jev is very sure about
 export const TIE = 0.02; // a runner-up this close to the top is a near tie

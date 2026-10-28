@@ -4,11 +4,13 @@ import { ImageResponse } from "next/og";
 import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { limited } from "@/lib/limit";
 import { politicians } from "@/lib/politicians";
-import { pct, verdictFor } from "@/lib/verdict";
+import { pct, verdictFor, type Verdict } from "@/lib/verdict";
 
 // The share card: 1200x630, one per question. It reads the same cached answer
 // the page shows, so it never disagrees with the site and costs no extra Jev
-// call. Sensitive results never print the visitor's question on our card.
+// call. Like the site, it ends in the pile: everyone in gray, the picks in
+// color, rising out of it. Refusals never print the visitor's question, so a
+// crafted "question" can't put a claim on our card.
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -22,18 +24,19 @@ const byId = new Map(politicians.map((p) => [p.id, p]));
 const font = (pkg: string, file: string) =>
   readFile(path.join(process.cwd(), "node_modules/@fontsource", pkg, "files", file));
 
-const faceCache = new Map<string, string>();
-async function face(id: string) {
-  let src = faceCache.get(id);
+const cache = new Map<string, string>();
+async function img(dir: "" | "sm" | "gray", id: string) {
+  const key = `${dir}/${id}`;
+  let src = cache.get(key);
   if (!src) {
-    const buf = await readFile(path.join(process.cwd(), "public/faces", `${id}.jpg`));
+    const buf = await readFile(path.join(process.cwd(), "public/faces", dir, `${id}.jpg`));
     src = `data:image/jpeg;base64,${buf.toString("base64")}`;
-    faceCache.set(id, src);
+    cache.set(key, src);
   }
   return src;
 }
 
-function Face({ src, size, ring = 6 }: { src: string; size: number; ring?: number }) {
+function Face({ src, size, ring, lift = false }: { src: string; size: number; ring: number; lift?: boolean }) {
   return (
     <div
       style={{
@@ -41,10 +44,12 @@ function Face({ src, size, ring = 6 }: { src: string; size: number; ring?: numbe
         width: size,
         height: size,
         borderRadius: size,
-        border: `${ring}px solid white`,
-        boxShadow: "0 2px 4px rgba(0,0,0,0.12), 0 12px 32px rgba(0,0,0,0.12)",
+        border: `${ring}px solid ${PAPER}`,
+        boxShadow: lift
+          ? "0 2px 4px rgba(0,0,0,0.14), 0 14px 32px rgba(0,0,0,0.16)"
+          : "0 1px 2px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.08)",
         overflow: "hidden",
-        background: "#e6e6e6",
+        background: "#e6e4df",
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
@@ -54,100 +59,126 @@ function Face({ src, size, ring = 6 }: { src: string; size: number; ring?: numbe
 }
 
 const Wordmark = ({ size }: { size: number }) => (
-  <div style={{ fontFamily: "Archivo Black", fontSize: size, color: RED, letterSpacing: -size * 0.03, lineHeight: 1 }}>
+  <div style={{ fontFamily: "Archivo Black", fontSize: size, color: RED, letterSpacing: -size * 0.025, lineHeight: 1 }}>
     Jev!
   </div>
 );
 
-const Footer = ({ sure = true }: { sure?: boolean }) => (
-  <div style={{ display: "flex", fontSize: 24, color: SOFT }}>
-    {sure ? "Jev’s opinion, not fact" : "From the public record"} · politiciansbyjev.vercel.app
+const Site = () => <div style={{ display: "flex", fontSize: 22, color: SOFT }}>politiciansbyjev.vercel.app</div>;
+
+// A strip of the pile along the bottom edge. Faces are placed on a loose
+// hexagonal grid with a seeded jitter, so a card always looks the same.
+async function pileStrip(seed: string, picks: string[], allColor = false) {
+  let h = 2166136261;
+  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  const rand = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 1000) / 1000;
+
+  const size = 78;
+  const step = 54;
+  const cols = Math.ceil(1200 / step) + 1;
+  const rest = politicians.map((p) => p.id).filter((id) => !picks.includes(id));
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  // Picks sit in the top row, spread across the width.
+  const spots: { id: string; x: number; y: number; pick: boolean }[] = [];
+  const pickCols = new Map(picks.slice(0, 8).map((id, i, a) => [Math.round(((i + 0.5) / a.length) * (cols - 2)), id]));
+  let n = 0;
+  for (let row = 0; row < 2; row++) {
+    for (let c = 0; c < cols; c++) {
+      const pick = row === 0 ? pickCols.get(c) : undefined;
+      const id = pick ?? rest[n++ % rest.length];
+      const x = c * step - (row % 2 ? step / 2 : 0) - 20 + (rand() - 0.5) * 10;
+      const y = row * 46 + (rand() - 0.5) * 10 - (pick ? 34 : 0);
+      spots.push({ id, x, y, pick: Boolean(pick) });
+    }
+  }
+  // Gray first, so the colored picks draw on top.
+  spots.sort((a, b) => Number(a.pick) - Number(b.pick));
+  const srcs = await Promise.all(spots.map((s) => img(s.pick || allColor ? "sm" : "gray", s.id)));
+  return (
+    <div style={{ display: "flex", position: "absolute", left: 0, bottom: 0, width: 1200, height: 150 }}>
+      {spots.map((s, i) => (
+        <div key={i} style={{ display: "flex", position: "absolute", left: s.x, top: s.y + 24 }}>
+          <Face src={srcs[i]} size={s.pick ? size + 10 : size} ring={4} lift={s.pick} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Frame = ({ children, strip }: { children: React.ReactNode; strip: React.ReactNode }) => (
+  <div style={{ display: "flex", position: "relative", width: "100%", height: "100%", background: PAPER }}>
+    <div style={{ display: "flex", width: "100%", height: 480, padding: "56px 72px 0" }}>{children}</div>
+    {strip}
   </div>
 );
 
 async function home() {
-  const ids = [
-    "abraham-lincoln", "alexandria-ocasio-cortez", "donald-trump", "barack-obama", "anthony-fauci",
-    "george-washington", "nancy-pelosi", "ted-cruz", "bernie-sanders", "john-f-kennedy", "nikki-haley",
-    "ronald-reagan",
-  ];
-  const srcs = await Promise.all(ids.map(face));
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: PAPER, padding: 72, justifyContent: "space-between" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <Frame strip={await pileStrip("home", [], true)}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
         <Wordmark size={168} />
         <div style={{ display: "flex", flexDirection: "column", fontSize: 44, color: INK, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.2 }}>
           <span>America’s 100 most famous politicians.</span>
-          <span style={{ color: SOFT }}>You ask. Jev picks.</span>
+          <span style={{ color: SOFT }}>You ask. Jev, an AI, picks.</span>
         </div>
       </div>
-      <div style={{ display: "flex" }}>
-        {srcs.map((src, i) => (
-          <div key={i} style={{ display: "flex", marginLeft: i ? -22 : 0 }}>
-            <Face src={src} size={104} ring={5} />
-          </div>
-        ))}
-      </div>
-    </div>
+    </Frame>
   );
 }
 
-function plain(question: string, line: string) {
+async function plain(line: string) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", background: PAPER, padding: 72, justifyContent: "space-between" }}>
-      <Wordmark size={120} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {question && <div style={{ fontSize: 56, color: INK, fontWeight: 600, letterSpacing: -1.2 }}>{`“${question}”`}</div>}
-        <div style={{ fontSize: 40, color: SOFT }}>{line}</div>
+    <Frame strip={await pileStrip(line, [])}>
+      <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <Wordmark size={72} />
+          <Site />
+        </div>
+        <div style={{ marginTop: 96, fontSize: 64, color: INK, fontWeight: 600, letterSpacing: -1.5, lineHeight: 1.1 }}>{line}</div>
       </div>
-      <Footer />
-    </div>
+    </Frame>
   );
 }
 
-async function verdictCard(
-  question: string,
-  scores: Record<string, number>,
-  v: NonNullable<ReturnType<typeof verdictFor>>,
-  sure: boolean,
-) {
-  const [topId, ...rest] = v.ids;
-  const top = byId.get(topId)!;
-  const others = rest.slice(0, 6);
-  const [topSrc, ...otherSrcs] = await Promise.all([topId, ...others].map(face));
-  // The answer is the punchline, so the name outranks the question.
-  const qSize = question.length > 60 ? 32 : 40;
+async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean) {
+  const top = byId.get(v.ids[0])!;
+  const qSize = question.length > 60 ? 30 : 38;
   return (
-    <div style={{ display: "flex", width: "100%", height: "100%", background: PAPER, padding: 72 }}>
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, paddingRight: 48 }}>
-        <Wordmark size={96} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          <div style={{ fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.2 }}>{`“${question}”`}</div>
-          {others.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {otherSrcs.map((src, i) => (
-                <div key={i} style={{ display: "flex", marginLeft: i ? -14 : 0 }}>
-                  <Face src={src} size={72} ring={4} />
-                </div>
-              ))}
-              {rest.length > others.length && (
-                <div style={{ marginLeft: 16, fontSize: 28, color: SOFT }}>{`+${rest.length - others.length}`}</div>
-              )}
-            </div>
-          )}
+    <Frame strip={await pileStrip(question, v.ids)}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, paddingRight: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <Wordmark size={72} />
+          <Site />
         </div>
-        <Footer sure={sure} />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 400 }}>
-        <Face src={topSrc} size={300} ring={8} />
-        <div style={{ marginTop: 28, fontFamily: "Archivo Black", fontSize: top.name.length > 16 ? 48 : 56, color: INK, lineHeight: 1.05, letterSpacing: -1, textAlign: "center" }}>
+        <div style={{ marginTop: 40, fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.2 }}>
+          {`“${question}”`}
+        </div>
+        <div
+          style={{
+            marginTop: 14,
+            fontFamily: "Archivo Black",
+            fontSize: top.name.length > 18 ? 60 : 72,
+            color: INK,
+            letterSpacing: -1.5,
+            lineHeight: 1,
+          }}
+        >
           {top.name}
         </div>
-        <div style={{ marginTop: 12, fontSize: 30, color: SOFT }}>
-          {sure ? `${v.label} · ${pct(scores[topId])}` : "On the public record"}
+        <div style={{ marginTop: 18, fontSize: 28, color: INK }}>
+          {sure
+            ? `${v.label} · ${pct(scores[top.id])}${v.ids.length > 1 ? ` · ${v.ids.length - 1} more floated up` : ""}`
+            : "On the public record"}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 22, color: SOFT }}>
+          {sure ? "Jev’s opinion, not fact." : "From what they have said publicly."}
         </div>
       </div>
-    </div>
+      <Face src={await img("", top.id)} size={300} ring={8} lift />
+    </Frame>
   );
 }
 
@@ -161,13 +192,13 @@ export async function GET(req: Request) {
     return new Response("Slow down.", { status: 429 });
   } else {
     const a = await getAnswer(q).catch(() => null);
-    if (!a) body = plain(q, "Ask Jev. America’s 100 most famous politicians.");
-    else if ("blocked" in a) body = plain("", "Jev won’t touch that one.");
+    if (!a) body = await plain("Ask Jev about America’s 100 most famous politicians.");
+    else if ("blocked" in a) body = await plain("Jev won’t touch that one.");
     else {
       const v = verdictFor(a.scores, a.mode);
       if (v) body = await verdictCard(q, a.scores, v, a.mode !== "out");
-      else if (a.mode === "strict") body = plain("", "Jev isn’t sure enough to name anyone.");
-      else body = plain(q, "Jev says: nobody.");
+      else if (a.mode === "strict") body = await plain("Jev isn’t sure enough to name anyone.");
+      else body = await plain("Jev says: nobody.");
     }
   }
 
