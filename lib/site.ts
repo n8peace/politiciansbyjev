@@ -24,7 +24,6 @@ export const KEYWORDS = [
   "AI ranks politicians",
   "US politicians",
   "best president",
-  "most corrupt politician",
 ];
 
 // Example questions: the chips on the page, the "What Jev says" page, and

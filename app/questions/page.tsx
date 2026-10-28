@@ -8,7 +8,7 @@ import { pct, verdictFor } from "@/lib/verdict";
 
 const TITLE = "What Jev says about America’s politicians";
 const DESCRIPTION =
-  "Jev’s answers to the questions people ask most: best president, most corrupt, who’d win a fistfight, and more. Each one scored across 100 famous US politicians by TypeSafe AI’s Jev model.";
+  "Jev’s answers to the questions people ask most: best president, who’d win a fistfight, the best hair, and more. Each one scored across 100 famous US politicians by TypeSafe AI’s Jev model.";
 
 export const metadata: Metadata = {
   title: TITLE,
