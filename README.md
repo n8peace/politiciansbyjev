@@ -1,15 +1,16 @@
-# Jev! — politicians by Jev
+# Jev! · politicians by Jev
 
-America's 100 most famous politicians sit in a physics pile. Ask a question and
-[Jev](https://vercel.com/ai-gateway/models/jev) (TypeSafe AI's decision model, via Vercel AI Gateway)
-gives each person a yes/no probability. Faces past the threshold float up in groups:
+An open-source demo of [Jev](https://vercel.com/ai-gateway/models/jev), TypeSafe AI's decision model,
+on Vercel AI Gateway. America's 100 most famous politicians sit in a physics pile. Ask a question and
+Jev scores every one of them (100 yes/no calls, under a second); the top pick floats out, runners-up
+follow, and everyone who missed turns gray.
 
-- **Jev is sure**: 80% or higher
-- **Jev thinks so**: 55–80%
-- **Jev's best guess**: nobody cleared 55%, so the top 3 (if at least 20%)
+Live: https://politiciansbyjev.vercel.app · Methodology: https://politiciansbyjev.vercel.app/how-it-works
 
-Thresholds live in `lib/tiers.ts`. The people are in `data/politicians.json`; portraits are
-saved to `public/faces` by `node scripts/fetch-faces.mjs`.
+- Thresholds and verdict rules: `lib/verdict.ts` (80% sure, 55% thinks so, 40% best guess)
+- Jev calls, question sorting, guardrails, and the one-a-day answer cache: `lib/answer.ts`
+- Per-question share card: `app/og/route.tsx`
+- The people: `data/politicians.json`; portraits saved by `node scripts/fetch-faces.mjs`
 
 ## Run it
 

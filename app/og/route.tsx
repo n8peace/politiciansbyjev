@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { limited } from "@/lib/limit";
 import { politicians } from "@/lib/politicians";
@@ -64,7 +65,9 @@ const Wordmark = ({ size }: { size: number }) => (
   </div>
 );
 
-const Site = () => <div style={{ display: "flex", fontSize: 22, color: SOFT }}>politiciansbyjev.vercel.app</div>;
+const Site = ({ note }: { note?: string }) => (
+  <div style={{ display: "flex", fontSize: 22, color: SOFT }}>{`politiciansbyjev.vercel.app${note ? ` · ${note}` : ""}`}</div>
+);
 
 // A strip of the pile along the bottom edge. Faces are placed on a loose
 // hexagonal grid with a seeded jitter, so a card always looks the same.
@@ -146,22 +149,24 @@ async function plain(line: string, note?: string) {
 
 async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean, fact: boolean) {
   const top = byId.get(v.ids[0])!;
-  const qSize = question.length > 60 ? 30 : 38;
+  // Sized to stay readable when a feed shrinks the card to ~500px wide.
+  const qSize = question.length > 60 ? 34 : 42;
+  const runners = v.ids.slice(1, 3).map((id) => byId.get(id)!.name);
   return (
     <Frame strip={await pileStrip(question, v.ids)}>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, paddingRight: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-          <Wordmark size={72} />
-          <Site />
+          <Wordmark size={64} />
+          <Site note={!sure ? "From the public record" : fact ? "Jev’s read, not a fact-check" : "Jev’s opinion, not fact"} />
         </div>
-        <div style={{ marginTop: 40, fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.2 }}>
+        <div style={{ marginTop: 32, fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.2 }}>
           {`“${question}”`}
         </div>
         <div
           style={{
             marginTop: 14,
             fontFamily: "Archivo Black",
-            fontSize: top.name.length > 18 ? 60 : 72,
+            fontSize: top.name.length > 18 ? 64 : 80,
             color: INK,
             letterSpacing: -1.5,
             lineHeight: 1,
@@ -169,13 +174,12 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
         >
           {top.name}
         </div>
-        <div style={{ marginTop: 18, fontSize: 28, color: INK }}>
-          {sure
-            ? `${v.label} · ${pct(scores[top.id])}${v.ids.length > 1 ? ` · ${v.ids.length - 1} more floated up` : ""}`
-            : "On the public record"}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginTop: 18, color: INK }}>
+          {sure && <span style={{ fontSize: 44, fontWeight: 600, letterSpacing: -1 }}>{pct(scores[top.id])}</span>}
+          <span style={{ fontSize: 30, color: SOFT }}>{sure ? v.label : "On the public record"}</span>
         </div>
-        <div style={{ marginTop: 8, fontSize: 22, color: SOFT }}>
-          {!sure ? "From what they have said publicly." : fact ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}
+        <div style={{ marginTop: 10, fontSize: 26, color: SOFT }}>
+          {runners.length ? `Then ${runners.join(", ")}${v.ids.length > 3 ? ` +${v.ids.length - 3}` : ""}` : ""}
         </div>
       </div>
       <Face src={await img("", top.id)} size={300} ring={8} lift />
@@ -210,7 +214,7 @@ export async function GET(req: Request) {
     font("geist-sans", "geist-sans-latin-600-normal.woff"),
   ]);
   const root = <div style={{ display: "flex", width: "100%", height: "100%", fontFamily: "Geist" }}>{body}</div>;
-  return new ImageResponse(root, {
+  const png = await new ImageResponse(root, {
     width: 1200,
     height: 630,
     fonts: [
@@ -219,6 +223,13 @@ export async function GET(req: Request) {
       { name: "Geist", data: g500, weight: 500, style: "normal" },
       { name: "Geist", data: g600, weight: 600, style: "normal" },
     ],
-    headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800" },
+  }).arrayBuffer();
+  // JPEG keeps the card around 100KB; WhatsApp skips preview images over ~300KB.
+  const jpeg = await sharp(Buffer.from(png)).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  return new Response(new Uint8Array(jpeg), {
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    },
   });
 }

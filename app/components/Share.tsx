@@ -20,7 +20,7 @@ export default function Share({ question, text }: { question: string; text: stri
     fetch(image)
       .then((r) => (r.ok ? r.blob() : null))
       .then((png) => {
-        if (live && png) setCard(new File([png], `jev-${slug(question)}.png`, { type: "image/png" }));
+        if (live && png) setCard(new File([png], `jev-${slug(question)}.jpg`, { type: "image/jpeg" }));
       })
       .catch(() => {});
     return () => {
@@ -81,7 +81,7 @@ export default function Share({ question, text }: { question: string; text: stri
           Post on X
         </a>
       )}
-      <a href={image} download={`jev-${slug(question)}.png`} className={quiet}>
+      <a href={image} download={`jev-${slug(question)}.jpg`} className={quiet}>
         Save image
       </a>
     </div>

@@ -3,20 +3,11 @@
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Share from "@/app/components/Share";
+import { EXAMPLES } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
 
 export type Face = { id: string; name: string; role: string; img: string; big: string };
 
-const EXAMPLES = [
-  "Best president ever",
-  "Who’s the most corrupt?",
-  "Who would win a fistfight?",
-  "Who’s the richest?",
-  "Who has the best hair?",
-  "Who’s the funniest?",
-  "Who would survive a zombie apocalypse?",
-  "Who gives the best speeches?",
-];
 
 type Pos = { x: number; y: number; a: number; s: number };
 type Status = "idle" | "asking" | "done" | "blocked" | "error";
@@ -515,9 +506,14 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
           <a href="https://bananaintelligence.ai" className="inline-flex h-11 items-center px-1 hover:text-ink">
             A Banana Intelligence product
           </a>
-          <a href="/credits" className="inline-flex h-11 items-center px-1 hover:text-ink">
-            Photo credits
-          </a>
+          <span className="flex items-center gap-3">
+            <a href="/how-it-works" className="inline-flex h-11 items-center px-1 hover:text-ink">
+              How it works
+            </a>
+            <a href="/credits" className="hidden h-11 items-center px-1 hover:text-ink sm:inline-flex">
+              Photo credits
+            </a>
+          </span>
         </nav>
 
         <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-8 *:pointer-events-auto">
@@ -531,7 +527,9 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 Jev!
               </button>
             ) : (
-              "Jev!"
+              <>
+                Jev!<span className="sr-only"> Ask Jev, an AI, about America’s 100 most famous politicians</span>
+              </>
             )}
           </h1>
           {!answered && (
@@ -671,7 +669,10 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                   {sure ? (
                     <>
                       “{asked}” · {kind === "fact" ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}{" "}
-                      Mad about it? <span className="font-semibold text-ink">Blame Jev.</span>
+                      Mad about it?{" "}
+                      <a href="/how-it-works" className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                        Blame Jev.
+                      </a>
                     </>
                   ) : (
                     <>Answered only from politicians who have said so publicly.</>

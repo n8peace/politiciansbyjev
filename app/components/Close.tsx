@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-// Back to wherever the visitor came from on Jev (keeping their question),
+// Closes a text page: back to wherever the visitor came from on Jev (keeping their question),
 // or home if they landed here directly. Esc does the same.
 export default function Close() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function Close() {
     <button
       type="button"
       onClick={close}
-      aria-label="Close photo credits"
+      aria-label="Close and go back"
       title="Close (Esc)"
       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-soft transition-[color,background-color,transform] duration-150 ease-out hover:bg-ink/5 hover:text-ink active:scale-[0.97]"
     >
