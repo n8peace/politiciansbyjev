@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { politicians } from "@/lib/politicians";
+import Close from "./Close";
 
 export const metadata: Metadata = { title: "Photo credits · Jev!" };
 
 export default function Credits() {
   const sorted = [...politicians].sort((a, b) => a.name.localeCompare(b.name));
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <Link href="/" className="font-logo text-4xl text-jev">
-        Jev!
-      </Link>
-      <h1 className="mt-6 text-xl font-semibold">Photo credits</h1>
+    <main className="mx-auto max-w-2xl px-4 pb-10">
+      <header className="sticky top-0 z-10 -mx-4 flex items-center justify-between bg-paper/95 px-4 py-3 backdrop-blur-sm">
+        <Link href="/" className="font-logo text-[2rem] leading-none tracking-[-0.025em] text-jev">
+          Jev!
+        </Link>
+        <Close />
+      </header>
+      <h1 className="mt-4 text-xl font-semibold">Photo credits</h1>
       <p className="mt-2 text-sm text-ink-soft">
         Portraits come from Wikimedia Commons. Official U.S. government portraits are in the
         public domain; the rest are used under the license shown. Answers on this site are
