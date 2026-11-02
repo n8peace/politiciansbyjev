@@ -10,7 +10,7 @@ export const JEV_URL = "https://vercel.com/ai-gateway/models/jev";
 
 export const TITLE = "Jev! · A Jev AI demo: ask about 100 US politicians";
 export const DESCRIPTION =
-  "Ask anything about America’s 100 most famous politicians. Jev, TypeSafe AI’s decision model, scores all 100 in under a second and the picks float out of the pile. An open-source Jev demo. Blame Jev.";
+  "Ask anything about America’s 100 most famous politicians. Jev, TypeSafe AI’s model, scores all 100 in under a second. An open-source Jev demo. Blame Jev.";
 export const KEYWORDS = [
   "Jev",
   "Jev AI",

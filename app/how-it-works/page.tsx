@@ -7,7 +7,7 @@ import { GUESS_FLOOR, LIKELY, STRICT, SURE } from "@/lib/verdict";
 
 const TITLE = "How Jev! works: a Jev model demo, with code";
 const DESCRIPTION =
-  "How Jev!, an open-source demo of TypeSafe AI’s Jev model, turns one question into 100 yes/no calls, what the thresholds mean, the guardrails on accusations, and the code.";
+  "How Jev!, an open-source demo of TypeSafe AI’s Jev model, turns one question into 100 yes/no calls: thresholds, guardrails, and the code.";
 
 export const metadata: Metadata = {
   title: TITLE,
