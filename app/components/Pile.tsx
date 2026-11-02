@@ -45,7 +45,20 @@ const anchor = (id: string, el: Element): Hover => {
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; initialQuestion?: string }) {
+// A real, cached answer shown on the empty first screen, so a visitor sees
+// the payoff before typing. Never made up: the page passes Jev's actual answer.
+export type Example = { question: string; scores: Record<string, number>; mode: Mode };
+const EXAMPLE_RUNNERS = 3;
+
+export default function Pile({
+  faces,
+  initialQuestion = "",
+  example = null,
+}: {
+  faces: Face[];
+  initialQuestion?: string;
+  example?: Example | null;
+}) {
   const stage = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const faceEls = useRef(new Map<string, HTMLDivElement>());
@@ -90,6 +103,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
   const [focusIdx, setFocusIdx] = useState(0);
 
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
+  const exampleVerdict = useMemo(() => (example ? verdictFor(example.scores, example.mode) : null), [example]);
+  const [ready, setReady] = useState(false);
   const byIdRef = useRef(byId);
   const answered = status !== "idle";
 
@@ -150,7 +165,9 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     // changes frame to frame (e.g. 120Hz phones), so bank time and step
     // exactly 1/60s at a time.
     const STEP = 1000 / 60;
-    const settle = reduced.current ? 420 : 15;
+    // Settle the pile before the first frame, so the first thing anyone sees
+    // is real faces at rest, not a shower of dots over the headline.
+    const settle = 420;
     for (let i = 0; i < settle; i++) Matter.Engine.update(e, STEP);
 
     const written = new Map<string, string>();
@@ -230,6 +247,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             written.set(f.id, next);
             node.style.width = node.style.height = `${size}px`;
             node.style.zIndex = out ? "35" : focused ? "12" : "10";
+            // A floated face sits over its card; taps go through to the card.
+            node.style.pointerEvents = out ? "none" : "";
             node.style.visibility = hidden ? "hidden" : "visible";
             node.style.filter = g ? `grayscale(${g}) contrast(${1 - g * 0.15})` : "";
             if (!out) node.style.opacity = String(1 - g * 0.4);
@@ -239,6 +258,8 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
+    // Tell the lift effect the engine exists (the example floats up on load).
+    requestAnimationFrame(() => setReady(true));
 
     // Only a width change moves the walls. Height changes on phones come from
     // the keyboard or the address bar, and shouldn't make the pile jump.
@@ -263,8 +284,10 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
     const e = engine.current;
     if (!e) return;
     // Only faces with a slot leave the pile; the other picks stay in it, in color.
-    const all = verdict?.ids ?? [];
-    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
+    // On the first screen, the example's top pick and runners-up float up.
+    const showExample = status === "idle" && !!exampleVerdict;
+    const all = showExample ? exampleVerdict!.ids.slice(0, 1 + EXAMPLE_RUNNERS) : (verdict?.ids ?? []);
+    const next = showExample ? all : all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
     const keep = new Set(next);
     const picked = new Set(all);
     for (const id of launched.current) {
@@ -293,7 +316,7 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
         sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow, width, othersOpen]);
+  }, [verdict, status, scores, faces, narrow, width, othersOpen, exampleVerdict, ready]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -651,12 +674,25 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
             // Phones get one swipeable row, the same as under an answer, so the
             // examples never run into the pile on short screens.
             <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
-              {EXAMPLES.slice(0, narrow ? EXAMPLES.length : 6).map((q) => (
+              {EXAMPLES.filter((q) => q !== example?.question || !exampleVerdict)
+                .slice(0, narrow ? EXAMPLES.length : 4)
+                .map((q) => (
                 <button key={q} type="button" onClick={() => ask(q, "push", "example")} className={chip}>
                   {q}
                 </button>
               ))}
             </div>
+          )}
+
+          {!answered && example && exampleVerdict && (
+            <ExampleCard
+              example={example}
+              verdict={exampleVerdict}
+              byId={byId}
+              slot={slot}
+              narrow={narrow}
+              onOpen={() => ask(example.question, "push", "example")}
+            />
           )}
 
           <div
@@ -858,11 +894,15 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
                 onPointerUp={release}
                 onPointerCancel={release}
                 onPointerLeave={(e) => e.pointerType === "mouse" && setHover((h) => (h?.id === f.id ? null : h))}
-                className="pointer-events-auto absolute left-0 top-0 cursor-grab touch-none overflow-hidden rounded-full bg-line shadow-[0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.10)] ring-2 ring-paper transition-[filter,opacity] duration-700 ease-out will-change-transform active:cursor-grabbing"
+                className="face-pending pointer-events-auto absolute left-0 top-0 cursor-grab touch-none overflow-hidden rounded-full bg-line shadow-[0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.10)] ring-2 ring-paper transition-[filter,opacity] duration-700 ease-out will-change-transform active:cursor-grabbing"
                 style={{ width: r * 2, height: r * 2, transform: "translate(-200px, -200px)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
+                  ref={(img) => {
+                    if (img?.complete && img.naturalWidth) img.parentElement?.classList.remove("face-pending");
+                  }}
+                  onLoad={(e) => e.currentTarget.parentElement?.classList.remove("face-pending")}
                   src={f.img}
                   alt=""
                   draggable={false}
@@ -890,5 +930,61 @@ export default function Pile({ faces, initialQuestion = "" }: { faces: Face[]; i
         </div>
       )}
     </div>
+  );
+}
+
+function ExampleCard({
+  example,
+  verdict,
+  byId,
+  slot,
+  narrow,
+  onOpen,
+}: {
+  example: Example;
+  verdict: Verdict;
+  byId: Map<string, Face>;
+  slot: (id: string, px: number, focusable?: boolean) => React.ReactNode;
+  narrow: boolean;
+  onOpen: () => void;
+}) {
+  const top = byId.get(verdict.ids[0])!;
+  const runners = verdict.ids.slice(1, 1 + EXAMPLE_RUNNERS);
+  const p = pct(example.scores[top.id]);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Jev on “${example.question}”: ${top.name}, ${p}. Open the full answer.`}
+      className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)] transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
+    >
+      <span className="flex items-center gap-4">
+        {slot(top.id, narrow ? 72 : 88, false)}
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm text-ink-soft">“{example.question}”</span>
+          <span className="mt-1 block font-logo text-2xl leading-tight tracking-[-0.01em] text-ink sm:text-[2rem]">
+            {top.name}
+          </span>
+          <span className="mt-1 block text-sm text-ink-soft">
+            <span className="font-semibold text-ink">{p}</span> {verdict.label}
+          </span>
+        </span>
+      </span>
+      {runners.length > 0 && (
+        <span className="mt-4 flex items-center gap-3 border-t border-line pt-3">
+          <span className="flex shrink-0 -space-x-2">
+            {runners.map((id) => (
+              <span key={id}>{slot(id, 32, false)}</span>
+            ))}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
+            Then {runners.map((id) => byId.get(id)!.name).join(", ")}
+          </span>
+          <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="shrink-0 text-ink-soft transition-transform duration-150 group-hover:translate-x-0.5">
+            <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )}
+    </button>
   );
 }

@@ -65,6 +65,11 @@ body {
   animation: rise 360ms var(--ease-out) both;
 }
 
+/* A pile face stays invisible until its photo loads: no gray placeholder dots. */
+.face-pending {
+  opacity: 0 !important;
+}
+
 .no-scrollbar {
   scrollbar-width: none;
 }

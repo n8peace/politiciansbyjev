@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import Pile from "@/app/components/Pile";
+import Pile, { type Example } from "@/app/components/Pile";
 import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { politicians, faceSrc, faceSmallSrc } from "@/lib/politicians";
 import { pct, verdictFor } from "@/lib/verdict";
+
+const EXAMPLE_QUESTION = "Best president ever";
 
 type Props = { searchParams: Promise<{ q?: string | string[] }> };
 
@@ -65,5 +67,14 @@ export default async function Home({ searchParams }: Props) {
     img: faceSmallSrc(p.id),
     big: faceSrc(p.id),
   }));
-  return <Pile faces={faces} initialQuestion={q} />;
+  // The first screen shows a real, cached answer (one Jev call a day at most).
+  // If Jev can't answer right now, the page simply shows no example.
+  let example: Example | null = null;
+  if (!q) {
+    const a = await getAnswer(EXAMPLE_QUESTION).catch(() => null);
+    if (a && !("blocked" in a) && a.mode === "normal" && verdictFor(a.scores, a.mode)) {
+      example = { question: EXAMPLE_QUESTION, scores: a.scores, mode: a.mode };
+    }
+  }
+  return <Pile faces={faces} initialQuestion={q} example={example} />;
 }
