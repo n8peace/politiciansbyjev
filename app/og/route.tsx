@@ -113,24 +113,40 @@ async function pileStrip(seed: string, picks: string[], allColor = false) {
 }
 
 // The weigh-in along the bottom edge, the same chart the answer card shows.
+// Picks are drawn larger and last, so they read as faces at feed size.
 async function weighStrip(scores: Record<string, number>, picks: string[]) {
   const pad = 72;
-  const { d, dots } = weighIn(scores, { width: 1200 - 2 * pad, bottom: 120, height: 120, max: 30 });
-  const size = d - 2;
+  const h = 160;
+  const { d, dots } = weighIn(scores, { width: 1200 - 2 * pad, bottom: h, height: h, max: 30 });
   const picked = new Set(picks);
-  const srcs = await Promise.all(dots.map((dot) => img(picked.has(dot.id) ? "sm" : "gray", dot.id)));
+  const order = [...dots].sort((a, b) => Number(picked.has(a.id)) - Number(picked.has(b.id)));
+  const srcs = await Promise.all(order.map((dot) => img(picked.has(dot.id) ? "sm" : "gray", dot.id)));
   return (
-    <div style={{ display: "flex", position: "absolute", left: pad, bottom: 26, width: 1200 - 2 * pad, height: 122, borderBottom: "2px solid #e6e4df" }}>
-      {dots.map((dot, i) => (
-        <div
-          key={dot.id}
-          style={{ display: "flex", position: "absolute", left: dot.x - size / 2, top: dot.y - size / 2, opacity: picked.has(dot.id) ? 1 : 0.7 }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-          <img src={srcs[i]} width={size} height={size} style={{ borderRadius: size, objectFit: "cover", objectPosition: "50% 22%" }} />
-        </div>
-      ))}
-      <div style={{ display: "flex", position: "absolute", left: 0, right: 0, top: 126, justifyContent: "space-between", fontSize: 16, color: SOFT }}>
+    <div style={{ display: "flex", position: "absolute", left: pad, bottom: 26, width: 1200 - 2 * pad, height: h + 2, borderBottom: "2px solid #e6e4df" }}>
+      {order.map((dot, i) => {
+        const pick = picked.has(dot.id);
+        const size = pick ? Math.round(d * 1.7) : d - 2;
+        const ring = pick ? 2 : 0;
+        return (
+          <div
+            key={dot.id}
+            style={{
+              display: "flex",
+              position: "absolute",
+              left: dot.x - size / 2 - ring,
+              top: dot.y - size / 2 - ring - (pick ? (size - d) / 2 : 0),
+              border: `${ring}px solid ${PAPER}`,
+              borderRadius: size + 2 * ring,
+              opacity: pick ? 1 : 0.7,
+              boxShadow: pick ? "0 2px 6px rgba(0,0,0,0.18)" : "none",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+            <img src={srcs[i]} width={size} height={size} style={{ borderRadius: size, objectFit: "cover", objectPosition: "50% 22%" }} />
+          </div>
+        );
+      })}
+      <div style={{ display: "flex", position: "absolute", left: 0, right: 0, top: h + 6, justifyContent: "space-between", fontSize: 16, color: SOFT }}>
         <span>0%</span>
         <span>All 100, by Jev’s score</span>
         <span>100%</span>
@@ -178,7 +194,9 @@ async function plain(line: string, note?: string, strip?: React.ReactNode) {
 async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean, fact: boolean) {
   const top = byId.get(v.ids[0])!;
   // Sized to stay readable when a feed shrinks the card to ~500px wide.
-  const qSize = question.length > 34 ? 34 : 42;
+  // At most two lines, so a long question can't push the text into the chart.
+  const qSize = question.length > 60 ? 30 : question.length > 34 ? 34 : 42;
+  const shown = question.length > 84 ? `${question.slice(0, 82).trimEnd()}…` : question;
   const runners = v.ids.slice(1, 3).map((id) => byId.get(id)!.name);
   return (
     <Frame strip={canWeigh(scores, "normal") && sure ? await weighStrip(scores, v.ids) : await pileStrip(question, v.ids)}>
@@ -188,7 +206,7 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
           <Site note={!sure ? "From the public record" : fact ? "Jev’s read, not a fact-check" : "Jev’s opinion, not fact"} />
         </div>
         <div style={{ marginTop: 32, fontSize: qSize, color: SOFT, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.2 }}>
-          {`“${question}”`}
+          {`“${shown}”`}
         </div>
         <div
           style={{
