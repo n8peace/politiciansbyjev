@@ -1047,7 +1047,7 @@ function ExampleCard({
           </span>
           <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
             Then {runners.slice(0, 2).map((id) => shortName(byId.get(id)!.name, byId)).join(", ")}
-            {verdict.ids.length > 3 ? ` and ${verdict.ids.length - 3} more` : ""}
+            {verdict.ids.length > 3 ? ` +${verdict.ids.length - 3}` : ""}
           </span>
           <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="shrink-0 text-ink-soft transition-transform duration-150 group-hover:translate-x-0.5">
             <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
