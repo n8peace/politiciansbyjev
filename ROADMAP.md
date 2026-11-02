@@ -17,7 +17,7 @@ Last refreshed: 2026-11-01
 
 - **What:** agents ask Jev without the page. `GET/POST /api/v1/ask` returns JSON (status, top pick, every pick with probability and photo, the link, the share card); `/api/mcp` is an MCP server with `ask_jev` and `list_politicians`; `/llms.txt` describes both. Built and checked on preview (#7); live after Nate's yes.
 - **Same rules as the site:** abuse and private-trait questions are refused, accusations only name people at 90% or higher, "openly gay" answers come only from the public-record list, and refusals never echo the question onto a card.
-- **Cost per call:** about $0.00024 in Jev calls for a new question (5.6k input tokens); $0 for a repeat, since one answer per question is cached for a day and shared by the page, the API, MCP and share cards.
+- **Cost per call:** about $0.00024 in Jev calls for a new question (5.6k input tokens); $0 for a repeat, since one answer per question is stored for 30 days and shared by the page, the API, MCP and share cards.
 - **Abuse limits:** 20 requests a minute per IP, 140 characters per question, the daily cache. The per-IP limit is per server instance, not global. A bot sending 1 million distinct questions a day would cost about $240, so the backstop is a spend cap on Jev calls in the Vercel AI Gateway (Nate's account) plus a Vercel firewall rate-limit rule if traffic ever looks automated.
 - **Not counted yet:** API and MCP asks don't fire the browser "Ask" event; count them server-side once the API sees real use.
 

@@ -104,6 +104,12 @@ export default function Pile({
 
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
   const exampleVerdict = useMemo(() => (example ? verdictFor(example.scores, example.mode) : null), [example]);
+  // The example's faces start in its card, not in the pile, so no one shows twice.
+  const exampleIds = useMemo(() => (exampleVerdict ? exampleVerdict.ids.slice(0, 1 + EXAMPLE_RUNNERS) : []), [exampleVerdict]);
+  const parkedIds = useRef(exampleIds);
+  const openedWithQuestion = useRef(Boolean(initialQuestion));
+  // Faces placed straight into their slot (no flight), e.g. the example on load.
+  const snap = useRef(new Set<string>());
   const [ready, setReady] = useState(false);
   // The pile fades in once, when most photos are in (or after 1.2s), instead
   // of popping in face by face on a slow connection.
@@ -116,7 +122,7 @@ export default function Pile({
   }, []);
   useEffect(() => {
     if (!r) return;
-    const t = setTimeout(() => setPileShown(true), 1200);
+    const t = setTimeout(() => setPileShown(true), 800);
     return () => clearTimeout(t);
   }, [r]);
   const byIdRef = useRef(byId);
@@ -173,7 +179,15 @@ export default function Pile({
       bodies.current.set(f.id, b);
       pos.current.set(f.id, { x: b.position.x, y: b.position.y, a: 0, s: 1 });
     });
-    Matter.Composite.add(e.world, [...bodies.current.values()]);
+    // Park the example's faces in its card before the pile settles, so the
+    // pile has no gaps and nobody appears twice.
+    const parked = new Set(openedWithQuestion.current ? [] : parkedIds.current);
+    for (const id of parked) {
+      launched.current.add(id);
+      lifted.current.set(id, 0);
+      snap.current.add(id);
+    }
+    Matter.Composite.add(e.world, [...bodies.current.entries()].filter(([id]) => !parked.has(id)).map(([, b]) => b));
 
     // Fixed physics step. Matter's integrator jitters when the step size
     // changes frame to frame (e.g. 120Hz phones), so bank time and step
@@ -225,7 +239,7 @@ export default function Pile({
         bank -= STEP;
       }
 
-      const k = reduced.current ? 1 : 1 - Math.pow(1 - 0.14, dt / 16.7);
+      const kFly = reduced.current ? 1 : 1 - Math.pow(1 - 0.14, dt / 16.7);
       const kPile = 1 - Math.pow(1 - 0.2, dt / 16.7);
       const box = el.getBoundingClientRect();
       const view = scroller.current?.getBoundingClientRect();
@@ -238,6 +252,7 @@ export default function Pile({
           const slot = slotEls.current.get(f.id);
           if (slot) {
             const s = slot.getBoundingClientRect();
+            const k = snap.current.has(f.id) ? 1 : kFly;
             p.x += (s.left - box.left + s.width / 2 - p.x) * k;
             p.y += (s.top - box.top + s.height / 2 - p.y) * k;
             p.a += (0 - p.a) * k;
@@ -301,8 +316,11 @@ export default function Pile({
     const e = engine.current;
     if (!e) return;
     // Only faces with a slot leave the pile; the other picks stay in it, in color.
-    const all = verdict?.ids ?? [];
-    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
+    const showExample = status === "idle" && exampleIds.length > 0;
+    const all = showExample ? exampleIds : (verdict?.ids ?? []);
+    const next = showExample ? all : all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
+    // Once anything changes, faces fly normally (only the first load snaps).
+    if (status !== "idle") snap.current.clear();
     const keep = new Set(next);
     const picked = new Set(all);
     for (const id of launched.current) {
@@ -331,7 +349,7 @@ export default function Pile({
         sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow, width, othersOpen, ready]);
+  }, [verdict, status, scores, faces, narrow, width, othersOpen, ready, exampleIds]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -766,7 +784,7 @@ export default function Pile({
             )}
             {status === "blocked" && (
               <div className="rise pt-6 text-center">
-                <h2 className="text-xl font-semibold tracking-[-0.01em] text-ink">Jev won’t touch that one.</h2>
+                <h2 className="text-xl font-semibold tracking-[-0.01em] text-balance text-ink">Jev won’t touch that one.</h2>
                 <p className="mt-2 text-base text-ink-soft">No guessing about abuse or private lives.</p>
               </div>
             )}
@@ -774,12 +792,12 @@ export default function Pile({
               <div className="rise pt-6 text-center">
                 {mode === "strict" ? (
                   <>
-                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-ink">Jev isn’t sure enough to name anyone.</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-balance text-ink">Jev isn’t sure enough to name anyone.</h2>
                     <p className="mt-2 text-base text-ink-soft">Accusations need 90% or better.</p>
                   </>
                 ) : (
                   <>
-                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-ink">Jev says: nobody.</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-balance text-ink">Jev says: nobody.</h2>
                     <p className="mt-2 text-base text-ink-soft">No one scored high enough to name.</p>
                   </>
                 )}
@@ -1006,7 +1024,7 @@ function ExampleCard({
       type="button"
       onClick={onOpen}
       aria-label={`Jev on “${example.question}”: ${top.name}, ${p}. Open the full answer.`}
-      className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)] transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
+      className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
     >
       <span className="flex items-center gap-4">
         <Still id={top.id} src={top.img} px={narrow ? 72 : 88} slot={slot} eager />
@@ -1028,7 +1046,8 @@ function ExampleCard({
             ))}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-            Then {runners.map((id) => byId.get(id)!.name.split(" ").pop()).join(", ")}
+            Then {runners.slice(0, 2).map((id) => shortName(byId.get(id)!.name, byId)).join(", ")}
+            {verdict.ids.length > 3 ? ` and ${verdict.ids.length - 3} more` : ""}
           </span>
           <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="shrink-0 text-ink-soft transition-transform duration-150 group-hover:translate-x-0.5">
             <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -1037,6 +1056,13 @@ function ExampleCard({
       )}
     </button>
   );
+}
+
+// Last name, unless two of the 100 share it ("F. Roosevelt", "T. Roosevelt").
+function shortName(name: string, byId: Map<string, Face>) {
+  const last = name.split(" ").pop()!;
+  const shared = [...byId.values()].filter((f) => f.name.split(" ").pop() === last).length > 1;
+  return shared ? `${name[0]}. ${last}` : last;
 }
 
 // The example's photos are in the server HTML, so they show on first paint.

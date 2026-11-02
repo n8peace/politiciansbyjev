@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: "/og" },
 };
 
-// Answers come from the shared one-a-day cache, so this page costs at most
+// Answers come from the shared 30-day answer store, so this page costs at most
 // one Jev call per question per day.
 export const dynamic = "force-dynamic";
 

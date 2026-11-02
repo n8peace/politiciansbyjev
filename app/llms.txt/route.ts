@@ -10,7 +10,7 @@ export function GET() {
 
 - JSON API: GET ${SITE_URL}/api/v1/ask?q=Best%20president%20ever (or POST {"question": "..."}). Returns status (answered, nobody, refused), the top pick, every pick with its probability, a link, and a share-card image.
 - MCP server (Streamable HTTP): ${SITE_URL}/api/mcp. Tools: ask_jev(question), list_politicians().
-- Limits: 20 requests a minute per IP; questions up to 140 characters; the same question returns the same answer for a day.
+- Limits: 20 requests a minute per IP; questions up to 140 characters; the same question returns the same stored answer for 30 days.
 - Guardrails: questions about abuse or private traits (sexuality, health, religion) are refused; accusations (crime, bigotry) only name people at 90% or higher; "openly gay" answers come only from a checked public-record list.
 
 ## Pages

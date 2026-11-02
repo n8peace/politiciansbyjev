@@ -8,7 +8,7 @@ follow, and everyone who missed turns gray.
 Live: https://politiciansbyjev.vercel.app · Methodology: https://politiciansbyjev.vercel.app/how-it-works
 
 - Thresholds and verdict rules: `lib/verdict.ts` (80% sure, 55% thinks so, 40% best guess)
-- Jev calls, question sorting, guardrails, and the one-a-day answer cache: `lib/answer.ts`
+- Jev calls, question sorting, guardrails, and the shared 30-day answer store: `lib/answer.ts`
 - Per-question share card: `app/og/route.tsx`
 - The people: `data/politicians.json`; portraits saved by `node scripts/fetch-faces.mjs`
 

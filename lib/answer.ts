@@ -1,6 +1,6 @@
 import "server-only";
 import { experimental_evaluate as evaluate } from "ai";
-import { unstable_cache } from "next/cache";
+import { getCache } from "@vercel/functions";
 import { politicians } from "@/lib/politicians";
 import { STRICT, type Kind } from "@/lib/verdict";
 
@@ -110,10 +110,29 @@ async function compute(question: string): Promise<Answer> {
 export const normalize = (q: string) =>
   q.trim().toLowerCase().replace(/\s+/g, " ").replace(/[?!.]+$/, "");
 
-// One answer per question, shared by every visitor, the page metadata, and the
-// share image, so a link that gets passed around costs one Jev call a day.
-const cached = unstable_cache(compute, ["jev-answer-v2"], { revalidate: 60 * 60 * 24 });
+// One answer per question, kept for 30 days in Vercel's Runtime Cache, which
+// every function in the region shares: the page, the share card, the API,
+// and MCP all read the same stored answer. (Jev drifts a point or so between
+// asks, so separate copies used to disagree: 93% on the page, 94% on the link.)
+// The cache key doesn't depend on the deployment, so answers survive deploys.
+// Locally, getCache() falls back to memory.
+const TTL = 60 * 60 * 24 * 30;
+const store = getCache({ namespace: "jev-answer-v3" });
+const inflight = new Map<string, Promise<Answer>>();
 
-export function getAnswer(question: string) {
-  return cached(normalize(question));
+export async function getAnswer(question: string): Promise<Answer> {
+  const key = normalize(question);
+  const hit = (await store.get(key).catch(() => null)) as Answer | null;
+  if (hit) return hit;
+  let pending = inflight.get(key);
+  if (!pending) {
+    pending = compute(key)
+      .then(async (answer) => {
+        await store.set(key, answer, { ttl: TTL }).catch(() => {});
+        return answer;
+      })
+      .finally(() => inflight.delete(key));
+    inflight.set(key, pending);
+  }
+  return pending;
 }

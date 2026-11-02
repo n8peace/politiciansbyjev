@@ -40,7 +40,7 @@ const FAQ: [string, string][] = [
   ],
   [
     "How much does a question cost?",
-    "About $0.00024 in Jev calls. The same question asked again within a day reuses the saved answer, so repeat asks and shared links are free.",
+    "About $0.00024 in Jev calls. The same question asked again within 30 days reuses the stored answer, so repeat asks and shared links are free.",
   ],
   [
     "Can my agent use Jev!?",
@@ -193,7 +193,7 @@ export default function HowItWorks() {
           AI SDK
         </a>{" "}
         call through Vercel AI Gateway. No API key is needed on Vercel; it signs in with the project’s
-        OIDC token. Same question, same answer for a day, so a link that gets passed around costs one call.
+        OIDC token. Same question, same stored answer for 30 days, so a link that gets passed around costs one call and always shows the same numbers.
       </p>
       <pre className="mt-4 overflow-x-auto rounded-2xl border border-line bg-ink p-4 text-sm leading-relaxed text-paper">
         <code>{SNIPPET}</code>
