@@ -115,12 +115,12 @@ async function pileStrip(seed: string, picks: string[], allColor = false) {
 // The weigh-in along the bottom edge, the same chart the answer card shows.
 async function weighStrip(scores: Record<string, number>, picks: string[]) {
   const pad = 72;
-  const { d, dots } = weighIn(scores, { width: 1200 - 2 * pad, bottom: 140, height: 140, max: 30 });
+  const { d, dots } = weighIn(scores, { width: 1200 - 2 * pad, bottom: 120, height: 120, max: 30 });
   const size = d - 2;
   const picked = new Set(picks);
   const srcs = await Promise.all(dots.map((dot) => img(picked.has(dot.id) ? "sm" : "gray", dot.id)));
   return (
-    <div style={{ display: "flex", position: "absolute", left: pad, bottom: 28, width: 1200 - 2 * pad, height: 142, borderBottom: "2px solid #e6e4df" }}>
+    <div style={{ display: "flex", position: "absolute", left: pad, bottom: 26, width: 1200 - 2 * pad, height: 122, borderBottom: "2px solid #e6e4df" }}>
       {dots.map((dot, i) => (
         <div
           key={dot.id}
@@ -130,7 +130,7 @@ async function weighStrip(scores: Record<string, number>, picks: string[]) {
           <img src={srcs[i]} width={size} height={size} style={{ borderRadius: size, objectFit: "cover", objectPosition: "50% 22%" }} />
         </div>
       ))}
-      <div style={{ display: "flex", position: "absolute", left: 0, right: 0, top: 146, justifyContent: "space-between", fontSize: 16, color: SOFT }}>
+      <div style={{ display: "flex", position: "absolute", left: 0, right: 0, top: 126, justifyContent: "space-between", fontSize: 16, color: SOFT }}>
         <span>0%</span>
         <span>All 100, by Jev’s score</span>
         <span>100%</span>
@@ -178,7 +178,7 @@ async function plain(line: string, note?: string, strip?: React.ReactNode) {
 async function verdictCard(question: string, scores: Record<string, number>, v: Verdict, sure: boolean, fact: boolean) {
   const top = byId.get(v.ids[0])!;
   // Sized to stay readable when a feed shrinks the card to ~500px wide.
-  const qSize = question.length > 60 ? 34 : 42;
+  const qSize = question.length > 34 ? 34 : 42;
   const runners = v.ids.slice(1, 3).map((id) => byId.get(id)!.name);
   return (
     <Frame strip={canWeigh(scores, "normal") && sure ? await weighStrip(scores, v.ids) : await pileStrip(question, v.ids)}>
@@ -194,7 +194,8 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
           style={{
             marginTop: 14,
             fontFamily: "Archivo Black",
-            fontSize: top.name.length > 18 ? 64 : 80,
+            // One line beside the portrait, so the chart below keeps its room.
+            fontSize: Math.min(80, Math.floor(700 / (top.name.length * 0.66))),
             color: INK,
             letterSpacing: -1.5,
             lineHeight: 1,
