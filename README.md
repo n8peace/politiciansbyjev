@@ -12,6 +12,12 @@ Live: https://politiciansbyjev.vercel.app · Methodology: https://politiciansbyj
 - Per-question share card: `app/og/route.tsx`
 - The people: `data/politicians.json`; portraits saved by `node scripts/fetch-faces.mjs`
 
+## Use it from an agent
+
+- JSON API: `GET https://politiciansbyjev.vercel.app/api/v1/ask?q=Best%20president%20ever` (or `POST {"question": "..."}`)
+- MCP server (Streamable HTTP): `https://politiciansbyjev.vercel.app/api/mcp`, tools `ask_jev` and `list_politicians`
+- Same guardrails and rate limit (20 a minute) as the site; see `/llms.txt`
+
 ## Run it
 
 ```bash

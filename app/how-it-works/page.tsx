@@ -43,6 +43,10 @@ const FAQ: [string, string][] = [
     "About $0.00024 in Jev calls. The same question asked again within a day reuses the saved answer, so repeat asks and shared links are free.",
   ],
   [
+    "Can my agent use Jev!?",
+    "Yes. There’s a JSON API at /api/v1/ask and an MCP server at /api/mcp with an ask_jev tool. Same guardrails and rate limit as the site.",
+  ],
+  [
     "Can I build something like this?",
     "Yes. The code is open source under the MIT license, and the core is one AI SDK call. See the snippet above or the GitHub repo.",
   ],
@@ -201,6 +205,34 @@ export default function HowItWorks() {
         </a>
         .
       </p>
+
+      <h2 className={h2}>7. Use it from your agent</h2>
+      <p className={body}>
+        Jev! has a headless side. Same answers, same guardrails, same limit of 20 questions a minute.
+      </p>
+      <ul className="mt-3 space-y-2 text-base text-ink-soft">
+        <li>
+          <span className="font-medium text-ink">JSON API:</span>{" "}
+          <code className="rounded bg-ink/5 px-1.5 py-0.5 text-sm text-ink">GET /api/v1/ask?q=…</code> returns the top
+          pick, every pick with its probability, and a link and share card.
+        </li>
+        <li>
+          <span className="font-medium text-ink">MCP server:</span> add{" "}
+          <code className="rounded bg-ink/5 px-1.5 py-0.5 text-sm text-ink">{SITE_URL}/api/mcp</code> to Claude or any
+          MCP client. Tools: <code className="text-sm text-ink">ask_jev</code> and{" "}
+          <code className="text-sm text-ink">list_politicians</code>.
+        </li>
+        <li>
+          <span className="font-medium text-ink">For crawlers and agents:</span>{" "}
+          <a href="/llms.txt" className={link}>
+            llms.txt
+          </a>
+          .
+        </li>
+      </ul>
+      <pre className="mt-4 overflow-x-auto rounded-2xl border border-line bg-ink p-4 text-sm leading-relaxed text-paper">
+        <code>{`curl "${SITE_URL}/api/v1/ask?q=Best%20president%20ever"`}</code>
+      </pre>
 
       <h2 className={h2}>Questions</h2>
       <dl className="mt-3 divide-y divide-line">
