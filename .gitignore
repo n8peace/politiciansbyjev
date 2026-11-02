@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local design-critique snapshots
 .impeccable/
+
+# daily work block state (local only)
+.daily/
