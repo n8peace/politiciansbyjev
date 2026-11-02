@@ -105,6 +105,20 @@ export default function Pile({
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
   const exampleVerdict = useMemo(() => (example ? verdictFor(example.scores, example.mode) : null), [example]);
   const [ready, setReady] = useState(false);
+  // The pile fades in once, when most photos are in (or after 1.2s), instead
+  // of popping in face by face on a slow connection.
+  const [pileShown, setPileShown] = useState(false);
+  const loadedCount = useRef(0);
+  const faceLoaded = useCallback((el: HTMLElement | null | undefined) => {
+    if (!el?.classList.contains("face-pending")) return;
+    el.classList.remove("face-pending");
+    if (++loadedCount.current >= 80) setPileShown(true);
+  }, []);
+  useEffect(() => {
+    if (!r) return;
+    const t = setTimeout(() => setPileShown(true), 1200);
+    return () => clearTimeout(t);
+  }, [r]);
   const byIdRef = useRef(byId);
   const answered = status !== "idle";
 
@@ -287,10 +301,8 @@ export default function Pile({
     const e = engine.current;
     if (!e) return;
     // Only faces with a slot leave the pile; the other picks stay in it, in color.
-    // On the first screen, the example's top pick and runners-up float up.
-    const showExample = status === "idle" && !!exampleVerdict;
-    const all = showExample ? exampleVerdict!.ids.slice(0, 1 + EXAMPLE_RUNNERS) : (verdict?.ids ?? []);
-    const next = showExample ? all : all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
+    const all = verdict?.ids ?? [];
+    const next = all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
     const keep = new Set(next);
     const picked = new Set(all);
     for (const id of launched.current) {
@@ -319,7 +331,7 @@ export default function Pile({
         sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow, width, othersOpen, exampleVerdict, ready]);
+  }, [verdict, status, scores, faces, narrow, width, othersOpen, ready]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -411,6 +423,8 @@ export default function Pile({
   );
 
   const inputEl = useRef<HTMLInputElement>(null);
+  const resultHead = useRef<HTMLDivElement>(null);
+  const focusResult = useRef(false);
 
   // Each question gets its own history entry, so Back steps to the last one.
   // The results column scrolls, but the pile sits on top of it at the edges.
@@ -437,7 +451,16 @@ export default function Pile({
   // question text itself is never sent.
   type Source = "typed" | "example" | "link" | "back" | "retry";
 
-  const ask = useCallback(async (q: string, history: "push" | "replace" | "none" = "push", source: Source = "typed") => {
+  type Preset = { scores: Record<string, number>; mode: Mode };
+
+  const ask = useCallback(async (
+    q: string,
+    history: "push" | "replace" | "none" = "push",
+    source: Source = "typed",
+    // The example card already holds Jev's answer; opening it shows exactly
+    // that, with no second request that could come back a point different.
+    preset?: Preset,
+  ) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setQuestion(trimmed);
@@ -456,14 +479,20 @@ export default function Pile({
       else window.history.replaceState(null, "", url);
     }
     scroller.current?.scrollTo({ top: 0 });
+    focusResult.current = source !== "link";
     try {
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmed }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Jev didn’t answer.");
+      let data;
+      if (preset) {
+        data = { mode: preset.mode, kind: "opinion", scores: preset.scores };
+      } else {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: trimmed }),
+        });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Jev didn’t answer.");
+      }
       if (data.blocked) {
         setStatus("blocked");
         track("Ask", { source, result: "refused" });
@@ -483,6 +512,14 @@ export default function Pile({
     }
   }, []);
 
+  // After an ask the visitor started, move focus to the answer so keyboard and
+  // screen-reader users land on it. Esc anywhere goes back to the start.
+  useEffect(() => {
+    if (status === "asking" || status === "idle" || !focusResult.current) return;
+    focusResult.current = false;
+    resultHead.current?.focus({ preventScroll: true });
+  }, [status]);
+
   const clear = useCallback((history = true) => {
     setQuestion("");
     setAsked("");
@@ -494,6 +531,14 @@ export default function Pile({
     if (history && window.location.search) window.history.pushState(null, "", window.location.pathname);
     inputEl.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && status !== "idle" && !(e.target instanceof HTMLInputElement)) clear();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [status, clear]);
 
   useEffect(() => {
     const onPop = () => {
@@ -678,7 +723,7 @@ export default function Pile({
             // examples never run into the pile on short screens.
             <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
               {EXAMPLES.filter((q) => q !== example?.question || !exampleVerdict)
-                .slice(0, narrow ? EXAMPLES.length : 4)
+                .slice(0, narrow ? EXAMPLES.length : 3)
                 .map((q) => (
                 <button key={q} type="button" onClick={() => ask(q, "push", "example")} className={chip}>
                   {q}
@@ -694,13 +739,15 @@ export default function Pile({
               byId={byId}
               slot={slot}
               narrow={narrow}
-              onOpen={() => ask(example.question, "push", "example")}
+              onOpen={() => ask(example.question, "push", "example", example)}
             />
           )}
 
           <div
+            ref={resultHead}
+            tabIndex={-1}
             aria-live="polite"
-            className={`w-full ${
+            className={`w-full outline-none ${
               status === "done" || status === "blocked" || status === "error"
                 ? "mt-6 rounded-2xl border border-line bg-paper px-4 pb-5 shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)]"
                 : ""
@@ -871,7 +918,7 @@ export default function Pile({
       <div
         role="group"
         aria-label="The pile of 100 politicians. Use arrow keys to move between faces, Enter to make one hop."
-        className="pointer-events-none absolute inset-0"
+        className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ease-out ${pileShown ? "" : "opacity-0"}`}
       >
         {r > 0 &&
           faces.map((f) => {
@@ -903,9 +950,9 @@ export default function Pile({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={(img) => {
-                    if (img?.complete && img.naturalWidth) img.parentElement?.classList.remove("face-pending");
+                    if (img?.complete && img.naturalWidth) faceLoaded(img.parentElement);
                   }}
-                  onLoad={(e) => e.currentTarget.parentElement?.classList.remove("face-pending")}
+                  onLoad={(e) => faceLoaded(e.currentTarget.parentElement)}
                   src={f.img}
                   alt=""
                   draggable={false}
@@ -962,7 +1009,7 @@ function ExampleCard({
       className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)] transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
     >
       <span className="flex items-center gap-4">
-        <Still id={top.id} src={top.big} px={narrow ? 72 : 88} slot={slot} eager />
+        <Still id={top.id} src={top.img} px={narrow ? 72 : 88} slot={slot} eager />
         <span className="min-w-0 flex-1">
           <span className="block text-sm text-ink-soft">“{example.question}”</span>
           <span className="mt-1 block font-logo text-2xl leading-tight tracking-[-0.01em] text-ink sm:text-[2rem]">
@@ -981,7 +1028,7 @@ function ExampleCard({
             ))}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-            Then {runners.map((id) => byId.get(id)!.name).join(", ")}
+            Then {runners.map((id) => byId.get(id)!.name.split(" ").pop()).join(", ")}
           </span>
           <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="shrink-0 text-ink-soft transition-transform duration-150 group-hover:translate-x-0.5">
             <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
