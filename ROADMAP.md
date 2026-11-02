@@ -1,16 +1,17 @@
 # Politicians by Jev Roadmap
 
 ## Up next
-Last refreshed: 2026-11-01
+Last refreshed: 2026-11-02
 
 <!-- roadmap:matrix:start -->
 | # | Item | Value / use case | Depends on | Owner | Status |
 |---|---|---|---|---|---|
-| 1 | Check and preview the first-screen branch: settled faces and a real example answer on the empty screen, tested on phone, tablet and desktop, plus reduced motion | A first-time visitor sees a real answer and a calm pile instead of an empty one, so more of them ask a question | none | Agent | in progress |
-| 7 | A headless way in: a JSON API and an MCP server so agents can ask Jev and get the verdict, with the same guardrails and rate limit | Other people's agents (and Claude) can use Jev without the page; a second way questions get asked | none | Agent | blocked: #2 (built and checked on preview) |
-| 2 | Look at the preview (first screen plus the agent API) and say "go live" (default: go live if the screenshots look right) | The deploy rule is that Nate approves every production deploy | #1 | Nate | blocked: #1 |
-| 3 | Ship it: merge to main, deploy to production, run the live guardrail checks, push to GitHub | The live site and the open-source repo match, and the guardrails are proven on production | #2 | Agent | blocked: #2 |
-| 4 | Share Jev once with real people (default: the LinkedIn post the CMO drafted for Fri Nov 6) | Questions asked is "under 10, mostly tests"; the value rating reaches 7 when people share it | #3 | Nate | blocked: #3 |
+| 1 | Check and preview the first-screen branch: settled faces and a real example answer on the empty screen, tested on phone, tablet and desktop, plus reduced motion | A first-time visitor sees a real answer and a calm pile instead of an empty one, so more of them ask a question | none | Agent | done 2026-11-02 |
+| 7 | A headless way in: a JSON API and an MCP server so agents can ask Jev and get the verdict, with the same guardrails and rate limit | Other people's agents (and Claude) can use Jev without the page; a second way questions get asked | none | Agent | done 2026-11-02 |
+| 2 | Look at the preview (first screen, agent API, shared answer store) and say "go live" | The deploy rule is that Nate approves every production deploy | none | Nate | done 2026-11-02 |
+| 3 | Ship it: merge to main, deploy to production, run the live guardrail checks, push to GitHub; $20/month AI budget and firewall rate limit (30/min per IP) set first | The live site and the open-source repo match, and the guardrails are proven on production | #2 | Agent | done 2026-11-02 |
+| 8 | The weigh-in: after an answer, the pile pours into ten columns by score, a histogram made of all 100 faces with the picks in color at the top end; the share card shows the same | The moment only Jev has, at the payoff: every politician weighed at once, in one screenshot worth sending; lifts the design score from 7 toward 8 | none | Agent | next |
+| 4 | Share Jev once with real people (default: the LinkedIn post the CMO drafted for Fri Nov 6) | Questions asked is "under 10, mostly tests"; the value rating reaches 7 when people share it | #3 | Nate | next |
 <!-- roadmap:matrix:end -->
 
 ## Headless plan
