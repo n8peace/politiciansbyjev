@@ -11,7 +11,7 @@ import { verdictFor } from "@/lib/verdict";
 
 const byId = new Map(politicians.map((p) => [p.id, p]));
 
-export type Person = { id: string; name: string; role: string; probability: number };
+export type Person = { id: string; name: string; role: string; probability: number; photo: string };
 
 export type HeadlessVerdict =
   | {
@@ -31,7 +31,13 @@ export type HeadlessVerdict =
 
 const person = (id: string, scores: Record<string, number>): Person => {
   const p = byId.get(id)!;
-  return { id, name: p.name, role: p.role, probability: Math.round(scores[id] * 100) / 100 };
+  return {
+    id,
+    name: p.name,
+    role: p.role,
+    probability: Math.round(scores[id] * 100) / 100,
+    photo: `${SITE_URL}/faces/${id}.jpg`, // credits: /credits
+  };
 };
 
 export async function askHeadless(raw: string): Promise<HeadlessVerdict> {
