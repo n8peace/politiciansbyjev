@@ -6,11 +6,12 @@ import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { limited } from "@/lib/limit";
 import { politicians } from "@/lib/politicians";
 import { pct, verdictFor, type Verdict } from "@/lib/verdict";
+import { canWeigh, weighIn } from "@/lib/weigh";
 
 // The share card: 1200x630, one per question. It reads the same cached answer
 // the page shows, so it never disagrees with the site and costs no extra Jev
-// call. Like the site, it ends in the pile: everyone in gray, the picks in
-// color, rising out of it. Refusals never print the visitor's question, so a
+// call. Like the site, it ends in the weigh-in: all 100 faces stacked by
+// score, everyone in gray but the picks, in color at the top end. Refusals never print the visitor's question, so a
 // crafted "question" can't put a claim on our card.
 
 export const runtime = "nodejs";
@@ -111,6 +112,33 @@ async function pileStrip(seed: string, picks: string[], allColor = false) {
   );
 }
 
+// The weigh-in along the bottom edge, the same chart the answer card shows.
+async function weighStrip(scores: Record<string, number>, picks: string[]) {
+  const pad = 72;
+  const { d, dots } = weighIn(scores, { width: 1200 - 2 * pad, bottom: 140, height: 140, max: 30 });
+  const size = d - 2;
+  const picked = new Set(picks);
+  const srcs = await Promise.all(dots.map((dot) => img(picked.has(dot.id) ? "sm" : "gray", dot.id)));
+  return (
+    <div style={{ display: "flex", position: "absolute", left: pad, bottom: 28, width: 1200 - 2 * pad, height: 142, borderBottom: "2px solid #e6e4df" }}>
+      {dots.map((dot, i) => (
+        <div
+          key={dot.id}
+          style={{ display: "flex", position: "absolute", left: dot.x - size / 2, top: dot.y - size / 2, opacity: picked.has(dot.id) ? 1 : 0.7 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+          <img src={srcs[i]} width={size} height={size} style={{ borderRadius: size, objectFit: "cover", objectPosition: "50% 22%" }} />
+        </div>
+      ))}
+      <div style={{ display: "flex", position: "absolute", left: 0, right: 0, top: 146, justifyContent: "space-between", fontSize: 16, color: SOFT }}>
+        <span>0%</span>
+        <span>All 100, by Jev’s score</span>
+        <span>100%</span>
+      </div>
+    </div>
+  );
+}
+
 const Frame = ({ children, strip }: { children: React.ReactNode; strip: React.ReactNode }) => (
   <div style={{ display: "flex", position: "relative", width: "100%", height: "100%", background: PAPER }}>
     <div style={{ display: "flex", width: "100%", height: 480, padding: "56px 72px 0" }}>{children}</div>
@@ -132,9 +160,9 @@ async function home() {
   );
 }
 
-async function plain(line: string, note?: string) {
+async function plain(line: string, note?: string, strip?: React.ReactNode) {
   return (
-    <Frame strip={await pileStrip(line, [])}>
+    <Frame strip={strip ?? (await pileStrip(line, []))}>
       <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <Wordmark size={72} />
@@ -153,7 +181,7 @@ async function verdictCard(question: string, scores: Record<string, number>, v: 
   const qSize = question.length > 60 ? 34 : 42;
   const runners = v.ids.slice(1, 3).map((id) => byId.get(id)!.name);
   return (
-    <Frame strip={await pileStrip(question, v.ids)}>
+    <Frame strip={canWeigh(scores, "normal") && sure ? await weighStrip(scores, v.ids) : await pileStrip(question, v.ids)}>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, paddingRight: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <Wordmark size={64} />
@@ -203,7 +231,7 @@ export async function GET(req: Request) {
       const v = verdictFor(a.scores, a.mode);
       if (v) body = await verdictCard(q, a.scores, v, a.mode !== "out", a.kind === "fact");
       else if (a.mode === "strict") body = await plain("Jev isn’t sure enough to name anyone.", "Accusations need 90% or better.");
-      else body = await plain("Jev says: nobody.");
+      else body = await plain("Jev says: nobody.", undefined, canWeigh(a.scores, a.mode) ? await weighStrip(a.scores, []) : undefined);
     }
   }
 

@@ -6,6 +6,7 @@ import { track } from "@vercel/analytics";
 import Share from "@/app/components/Share";
 import { EXAMPLES } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
+import { canWeigh, weighIn } from "@/lib/weigh";
 
 export type Face = { id: string; name: string; role: string; img: string; big: string };
 
@@ -70,6 +71,8 @@ export default function Pile({
   const launched = useRef(new Set<string>());
   // How much each pile face has "sunk" (0 = full color, 1 = gray), by score.
   const sink = useRef(new Map<string, number>());
+  // Faces standing in the weigh-in, the chart under an answer.
+  const weigh = useRef(new Set<string>());
   // `scroll` marks a touch on the pile while there's an answer to scroll: it
   // scrolls the answer instead of dragging, and a tap still makes the face hop.
   const drag = useRef<{
@@ -88,6 +91,7 @@ export default function Pile({
   const [r, setR] = useState(0);
   const [narrow, setNarrow] = useState(false);
   const [width, setWidth] = useState(1024);
+  const [chartW, setChartW] = useState(0);
   const [question, setQuestion] = useState(initialQuestion);
   const [asked, setAsked] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -140,6 +144,7 @@ export default function Pile({
       setWidth(el.clientWidth);
       setNarrow(el.clientWidth < 640);
     };
+
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -220,7 +225,7 @@ export default function Pile({
             node.style.opacity = "1";
             const img = node.querySelector("img");
             const big = byIdRef.current.get(id)?.big;
-            if (img && big && !img.src.endsWith(big)) img.src = big;
+            if (img && big && !weigh.current.has(id) && !img.src.endsWith(big)) img.src = big;
             // Reduced motion: the face appears in place instead of flying.
             if (reduced.current) node.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
           }
@@ -271,19 +276,22 @@ export default function Pile({
           // Real size, not a scale transform, so a floated-up face stays sharp.
           const size = Math.round(2 * r * p.s * 2) / 2;
           node.style.transform = `translate(${p.x - size / 2}px, ${p.y - size / 2}px) rotate(${p.a}rad)`;
-          const g = out ? 0 : (sink.current.get(f.id) ?? 0);
+          // Faces in the chart behave like the pile: gray when they missed,
+          // and a tap or hover shows their score.
+          const floated = out && !weigh.current.has(f.id);
+          const g = floated ? 0 : (sink.current.get(f.id) ?? 0);
           // Only touch layout and paint properties when they change.
           const focused = node === document.activeElement;
-          const next = `${size}|${out}|${hidden}|${g}|${focused}`;
+          const next = `${size}|${out}|${floated}|${hidden}|${g}|${focused}`;
           if (written.get(f.id) !== next) {
             written.set(f.id, next);
             node.style.width = node.style.height = `${size}px`;
             node.style.zIndex = out ? "35" : focused ? "12" : "10";
             // A floated face sits over its card; taps go through to the card.
-            node.style.pointerEvents = out ? "none" : "";
+            node.style.pointerEvents = floated ? "none" : "";
             node.style.visibility = hidden ? "hidden" : "visible";
             node.style.filter = g ? `grayscale(${g}) contrast(${1 - g * 0.15})` : "";
-            if (!out) node.style.opacity = String(1 - g * 0.4);
+            if (!floated) node.style.opacity = String(1 - g * 0.4);
           }
         }
       }
@@ -310,19 +318,46 @@ export default function Pile({
     };
   }, [faces, r]);
 
-  // Float the picks out of the pile one at a time, best first, and let the
-  // rest sink: faces fade toward gray by how far they missed.
+  // Only faces with a slot float up to the card; the other picks stay below, in color.
+  const showExample = status === "idle" && exampleIds.length > 0;
+  const picks = useMemo(() => (showExample ? exampleIds : (verdict?.ids ?? [])), [showExample, exampleIds, verdict]);
+  const floatIds = useMemo(
+    () => (showExample ? picks : picks.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0))),
+    [showExample, picks, othersOpen, narrow, width],
+  );
+
+  // The weigh-in: once Jev answers, everyone left in the pile pours into the
+  // answer card, ten columns by score, so the whole field is weighed at once.
+  const chart = useMemo(() => {
+    if (status !== "done" || !chartW || !canWeigh(scores, mode)) return null;
+    const height = narrow ? 180 : 240;
+    return { height, ...weighIn(scores, { width: chartW, bottom: height, height, max: narrow ? 20 : 28 }) };
+  }, [status, chartW, scores, mode, narrow]);
+  const chartEl = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const el = chartEl.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setChartW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [status, verdict]);
+
+  // Float the picks out of the pile one at a time, best first, pour the rest
+  // into the chart, and let the misses sink: they fade toward gray.
   useLayoutEffect(() => {
     const e = engine.current;
     if (!e) return;
-    // Only faces with a slot leave the pile; the other picks stay in it, in color.
-    const showExample = status === "idle" && exampleIds.length > 0;
-    const all = showExample ? exampleIds : (verdict?.ids ?? []);
-    const next = showExample ? all : all.slice(0, 1 + (othersOpen ? sizes(narrow, width).named : 0));
+    const next = floatIds;
     // Once anything changes, faces fly normally (only the first load snaps).
     if (status !== "idle") snap.current.clear();
-    const keep = new Set(next);
-    const picked = new Set(all);
+    const picked = new Set(picks);
+    const floating = new Set(next);
+    // Bottom row first, left to right, so the columns fill like a pour.
+    const pour = chart
+      ? [...chart.dots].sort((a, b) => a.row - b.row || a.x - b.x).map((dot) => dot.id).filter((id) => !floating.has(id))
+      : [];
+    weigh.current = new Set(pour);
+    const keep = new Set([...next, ...pour]);
     for (const id of launched.current) {
       if (keep.has(id)) continue;
       const b = bodies.current.get(id)!;
@@ -337,10 +372,13 @@ export default function Pile({
     const gap = reduced.current ? 0 : Math.min(90, 900 / Math.max(next.length, 1));
     const map = new Map<string, number>();
     next.forEach((id, i) => map.set(id, launched.current.has(id) ? 0 : now + (i === 0 ? 0 : 180 + i * gap)));
+    // The pour starts as the picks land, about a second for all of it.
+    const drip = reduced.current ? 0 : 900 / Math.max(pour.length, 1);
+    pour.forEach((id, i) => map.set(id, launched.current.has(id) ? 0 : now + 650 + i * drip));
     lifted.current = map;
 
     sink.current.clear();
-    if (status === "done" && verdict) {
+    if (status === "done" && (verdict || chart)) {
       for (const f of faces) {
         if (picked.has(f.id)) continue;
         const s = scores[f.id];
@@ -349,7 +387,7 @@ export default function Pile({
         sink.current.set(f.id, 0.85 + 0.15 * miss);
       }
     }
-  }, [verdict, status, scores, faces, narrow, width, othersOpen, ready, exampleIds]);
+  }, [floatIds, picks, chart, verdict, status, scores, faces, r, ready]);
 
   // Tapping a face in the pile makes it hop.
   const hop = useCallback((id: string) => {
@@ -844,6 +882,33 @@ export default function Pile({
                     <>Answered only from politicians who have said so publicly.</>
                   )}
                 </p>
+                {canWeigh(scores, mode) && (
+                  <figure className="mt-8 w-full">
+                    <figcaption className="text-center text-sm font-medium text-ink-soft">All 100, weighed</figcaption>
+                    {/* Each face lands on its own spot; a dashed ring marks a pick shown above. */}
+                    <div ref={chartEl} className="relative mt-3 w-full" style={{ height: chart?.height ?? (narrow ? 180 : 240) }}>
+                      {chart?.dots.map((dot) => {
+                        const px = chart.d - 3;
+                        const style = { left: dot.x - px / 2, top: dot.y - px / 2, width: px, height: px };
+                        return floatIds.includes(dot.id) ? (
+                          <span key={dot.id} aria-hidden className="absolute rounded-full border border-dashed border-ink/30" style={style} />
+                        ) : (
+                          <span key={dot.id} className="absolute" style={style}>
+                            {slot(dot.id, px, false)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div aria-hidden className="flex justify-between border-t border-line pt-1.5 text-xs tabular-nums text-ink-faint">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                    <p className="sr-only">
+                      {verdict.ids.length} of 100 scored {pct(LIKELY)} or more; the rest are below.
+                    </p>
+                  </figure>
+                )}
                 {others.length > 0 && !othersOpen && (
                   <button
                     type="button"
