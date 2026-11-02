@@ -184,6 +184,9 @@ export default function Pile({
         if (now >= at && !launched.current.has(id)) {
           launched.current.add(id);
           Matter.Composite.remove(e.world, bodies.current.get(id)!);
+          // The example card's printed photo steps aside for the real face.
+          const still = document.querySelector<HTMLElement>(`[data-still="${id}"]`);
+          if (still) still.style.opacity = "0";
           const node = faceEls.current.get(id);
           if (node) {
             node.style.opacity = "1";
@@ -1013,6 +1016,7 @@ function Still({
         width={px}
         height={px}
         fetchPriority={eager ? "high" : "auto"}
+        data-still={id}
         className="absolute inset-0 h-full w-full rounded-full object-cover ring-2 ring-paper shadow-[0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.10)]"
         style={{ objectPosition: "50% 22%" }}
       />
