@@ -959,7 +959,7 @@ function ExampleCard({
       className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)] transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
     >
       <span className="flex items-center gap-4">
-        {slot(top.id, narrow ? 72 : 88, false)}
+        <Still id={top.id} src={top.big} px={narrow ? 72 : 88} slot={slot} eager />
         <span className="min-w-0 flex-1">
           <span className="block text-sm text-ink-soft">“{example.question}”</span>
           <span className="mt-1 block font-logo text-2xl leading-tight tracking-[-0.01em] text-ink sm:text-[2rem]">
@@ -974,7 +974,7 @@ function ExampleCard({
         <span className="mt-4 flex items-center gap-3 border-t border-line pt-3">
           <span className="flex shrink-0 -space-x-2">
             {runners.map((id) => (
-              <span key={id}>{slot(id, 32, false)}</span>
+              <Still key={id} id={id} src={byId.get(id)!.img} px={32} slot={slot} />
             ))}
           </span>
           <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
@@ -986,5 +986,37 @@ function ExampleCard({
         </span>
       )}
     </button>
+  );
+}
+
+// The example's photos are in the server HTML, so they show on first paint.
+// The floating face from the pile lands exactly on top of its still.
+function Still({
+  id,
+  src,
+  px,
+  slot,
+  eager = false,
+}: {
+  id: string;
+  src: string;
+  px: number;
+  slot: (id: string, px: number, focusable?: boolean) => React.ReactNode;
+  eager?: boolean;
+}) {
+  return (
+    <span className="relative block shrink-0 rounded-full" style={{ width: px, height: px }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        width={px}
+        height={px}
+        fetchPriority={eager ? "high" : "auto"}
+        className="absolute inset-0 h-full w-full rounded-full object-cover ring-2 ring-paper shadow-[0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.10)]"
+        style={{ objectPosition: "50% 22%" }}
+      />
+      {slot(id, px, false)}
+    </span>
   );
 }
