@@ -35,7 +35,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const description = [
     sure ? `${pct(answered.scores[v.ids[0]])} sure.` : "On the public record.",
     runners.length ? `Then ${runners.join(" and ")}${v.ids.length > 3 ? `, plus ${v.ids.length - 3} more` : ""}.` : "",
-    "Jev scored all 100 of America’s most famous politicians. Jev’s opinion, not fact. Blame Jev.",
+    "Jev scored all 100. Its opinion, not fact. Blame Jev.",
   ]
     .filter(Boolean)
     .join(" ");
