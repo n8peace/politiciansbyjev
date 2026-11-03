@@ -115,8 +115,9 @@ export default function Pile({
   // Faces placed straight into their slot (no flight), e.g. the example on load.
   const snap = useRef(new Set<string>());
   const [ready, setReady] = useState(false);
-  // The pile fades in once, when most photos are in (or after 1.2s), instead
-  // of popping in face by face on a slow connection.
+  // The pile fades in once, as a whole, when most photos are in. On a slow
+  // link it holds a little longer (up to 2s) rather than show a half-empty
+  // pile that then fills in face by face.
   const [pileShown, setPileShown] = useState(false);
   const loadedCount = useRef(0);
   const faceLoaded = useCallback((el: HTMLElement | null | undefined) => {
@@ -126,8 +127,12 @@ export default function Pile({
   }, []);
   useEffect(() => {
     if (!r) return;
-    const t = setTimeout(() => setPileShown(true), 800);
-    return () => clearTimeout(t);
+    const soon = setTimeout(() => loadedCount.current >= 50 && setPileShown(true), 800);
+    const late = setTimeout(() => setPileShown(true), 2000);
+    return () => {
+      clearTimeout(soon);
+      clearTimeout(late);
+    };
   }, [r]);
   const byIdRef = useRef(byId);
   const answered = status !== "idle";

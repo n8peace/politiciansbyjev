@@ -1,9 +1,11 @@
 // Saves each portrait to public/faces/<id>.jpg at 360px wide, sharp enough
 // for the 136px hero face on a 2x screen and the 300px face on share cards.
-// The pile loads a 140px copy from public/faces/sm.
+// The pile loads a 140px copy from public/faces/sm, encoded with mozjpeg so
+// all 100 weigh about 340KB together and arrive as one on a slow link.
 // Usage: node scripts/fetch-faces.mjs [--force]
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile, readdir } from "node:fs/promises";
+import sharp from "sharp";
 
 const UA = "politiciansbyjev/0.2 (https://politiciansbyjev.vercel.app; n8peace)";
 const WIDTH = 360;
@@ -44,7 +46,7 @@ for (const p of people) {
   // A small copy for the pile, where faces are 30 to 64px, and a gray one
   // for the pile strip on share cards (the card renderer can't filter).
   const sm = `public/faces/sm/${p.id}.jpg`;
-  execFileSync("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "78", "-Z", "140", out, "--out", sm], { stdio: "ignore" });
+  await sharp(out).resize(140, 140, { fit: "inside" }).jpeg({ quality: 82, mozjpeg: true }).toFile(sm);
   execFileSync("magick", [sm, "-colorspace", "Gray", "-level", "0%,100%,1.08", "-quality", "78", `public/faces/gray/${p.id}.jpg`]);
   await new Promise((r) => setTimeout(r, 200));
 }
