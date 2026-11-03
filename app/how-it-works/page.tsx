@@ -152,6 +152,17 @@ export default function HowItWorks() {
       <p className={body}>
         The highest score becomes the top pick. Then all 100 pour into a chart of ten columns by score, the weigh-in, with everyone who missed in gray.
       </p>
+      <p className={body}>
+        The full method, with real answers and their numbers:{" "}
+        <Link href="/how-it-works/scoring" className={link}>
+          how Jev scores a question
+        </Link>
+        . What changed and when:{" "}
+        <Link href="/releases" className={link}>
+          the release log
+        </Link>
+        .
+      </p>
 
       <h2 className={h2}>4. Guardrails</h2>
       <p className={body}>
@@ -206,7 +217,7 @@ export default function HowItWorks() {
         .
       </p>
 
-      <h2 className={h2}>7. Use it from your agent</h2>
+      <h2 id="agents" className={h2}>7. Use it from your agent</h2>
       <p className={body}>
         Jev! has a headless side. Same answers, same guardrails, same limit of 20 questions a minute.
       </p>

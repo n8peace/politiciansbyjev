@@ -17,6 +17,8 @@ export function GET() {
 
 - [Home](${SITE_URL}/): ask a question
 - [How it works](${SITE_URL}/how-it-works): methodology, thresholds, guardrails, code
+- [How Jev scores a question](${SITE_URL}/how-it-works/scoring): the method, with real numbers: one yes/no call per politician, the 80% and 55% bars, what gets refused
+- [Release log](${SITE_URL}/releases): every feature that went live, with its date and reason
 - [What Jev says](${SITE_URL}/questions): Jev’s answers to common questions
 - [Source code](${REPO_URL}): MIT
 
