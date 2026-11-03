@@ -1,7 +1,7 @@
 # Politicians by Jev Roadmap
 
 ## Up next
-Last refreshed: 2026-11-02
+Last refreshed: 2026-11-03
 
 <!-- roadmap:matrix:start -->
 | # | Item | Value / use case | Depends on | Owner | Status |
@@ -12,6 +12,7 @@ Last refreshed: 2026-11-02
 | 3 | Ship it: merge to main, deploy to production, run the live guardrail checks, push to GitHub; $20/month AI budget and firewall rate limit (30/min per IP) set first | The live site and the open-source repo match, and the guardrails are proven on production | #2 | Agent | done 2026-11-02 |
 | 8 | The weigh-in: after an answer, the pile pours into ten columns by score, a histogram made of all 100 faces with the picks in color at the top end; the share card shows the same | The moment only Jev has, at the payoff: every politician weighed at once, in one screenshot worth sending; lifts the design score from 7 toward 8 | none | Agent | done 2026-11-02 |
 | 4 | Share Jev once with real people (default: the LinkedIn post the CMO drafted for Fri Nov 6) | Questions asked is "under 10, mostly tests"; the value rating reaches 7 when people share it | #3 | Nate | next |
+| 10 | A method page (how Jev scores a question, with real numbers) and a public release log, for search and AI answers | AI assistants and Google cite specific, sourced pages; gives the site something only it has | none | Agent | done 2026-11-03 |
 <!-- roadmap:matrix:end -->
 
 ## Headless plan
