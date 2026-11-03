@@ -45,6 +45,13 @@ export const RELEASES: Release[] = [
     what: "Each question got its own share card and link, plus a page explaining how Jev! works, photo credits, and the full source on GitHub under the MIT license.",
     why: "A verdict is only fun if you can send it to someone, and an AI ranking real people should show its method.",
   },
+  {
+    date: "2026-10-02",
+    slug: "first-version",
+    title: "Jev! goes public",
+    what: "A pile of America’s 100 most famous politicians, as faces you can grab and fling. Ask any question and Jev scores all 100 at once; whoever clears the bar floats up out of the pile.",
+    why: "A fun way to see what Jev, TypeSafe AI’s decision model, can do: 100 judgments in under a second. From day one, questions about crimes or bigotry only name people Jev rates at 90% or higher, and questions about abuse or private traits are refused.",
+  },
 ];
 
 export const LATEST = RELEASES[0].date;
