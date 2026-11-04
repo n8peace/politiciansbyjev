@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Geist } from "next/font/google";
-import { DESCRIPTION, JEV_URL, KEYWORDS, REPO_URL, SITE_NAME, SITE_URL, TITLE } from "@/lib/site";
+import { DESCRIPTION, FULL_NAME, JEV_URL, KEYWORDS, REPO_URL, SITE_NAME, SITE_URL, TITLE } from "@/lib/site";
 import SiteAnalytics from "@/app/components/SiteAnalytics";
 import "./globals.css";
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   category: "entertainment",
   alternates: { canonical: "/" },
   openGraph: {
-    siteName: SITE_NAME,
+    siteName: FULL_NAME,
     type: "website",
     locale: "en_US",
     url: "/",
@@ -39,11 +39,20 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#fcfbf8", colorScheme: "light" };
 
+// WebSite is what Google reads for the site name shown above results.
+const website = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: FULL_NAME,
+  alternateName: [SITE_NAME, "politiciansbyjev"],
+  url: `${SITE_URL}/`,
+};
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: SITE_NAME,
-  alternateName: "Politicians by Jev",
+  name: FULL_NAME,
+  alternateName: SITE_NAME,
   url: SITE_URL,
   description: DESCRIPTION,
   applicationCategory: "EntertainmentApplication",
@@ -59,7 +68,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${sans.variable} ${logo.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([website, jsonLd]) }} />
         {children}
         <SiteAnalytics />
       </body>

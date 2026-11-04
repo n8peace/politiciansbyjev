@@ -5,10 +5,13 @@
 // see one copy of each page.
 export const SITE_URL = "https://politiciansbyjev.vercel.app";
 export const SITE_NAME = "Jev!";
+// The name Google shows above search results. "Jev" alone is also the model's
+// name, so the site goes by its full name and keeps "Jev!" as the short one.
+export const FULL_NAME = "Politicians by Jev";
 export const REPO_URL = "https://github.com/n8peace/politiciansbyjev";
 export const JEV_URL = "https://vercel.com/ai-gateway/models/jev";
 
-export const TITLE = "Jev! · A Jev AI demo: ask about 100 US politicians";
+export const TITLE = "Politicians by Jev · Ask Jev AI about 100 US politicians";
 export const DESCRIPTION =
   "Ask anything about America’s 100 most famous politicians. Jev, TypeSafe AI’s model, scores all 100 in under a second. An open-source Jev demo. Blame Jev.";
 export const KEYWORDS = [

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.n8peace/politiciansbyjev",
+  "title": "Politicians by Jev",
+  "description": "Ask anything about 100 famous US politicians; Jev, TypeSafe AI's model, scores all 100 and picks.",
+  "version": "1.0.0",
+  "websiteUrl": "https://politiciansbyjev.vercel.app",
+  "repository": {
+    "url": "https://github.com/n8peace/politiciansbyjev",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://politiciansbyjev.vercel.app/api/mcp"
+    }
+  ]
+}
