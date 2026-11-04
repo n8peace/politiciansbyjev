@@ -1,7 +1,7 @@
 # Politicians by Jev Roadmap
 
 ## Up next
-Last refreshed: 2026-11-03
+Last refreshed: 2026-11-04
 
 <!-- roadmap:matrix:start -->
 | # | Item | Value / use case | Depends on | Owner | Status |
@@ -24,6 +24,8 @@ Last refreshed: 2026-11-03
 - **Not counted yet:** API and MCP asks don't fire the browser "Ask" event; count them server-side once the API sees real use.
 
 ## Later
+- Listed in the official MCP Registry 2026-11-03 (io.github.n8peace/politiciansbyjev, Nate published it).
+- Google Connected Apps (Search and Gemini): waitlist form submitted 2026-11-04 from nate@bananaintelligence.ai. Google writes only if Jev is picked. If picked, the listing fields and steps are in launch/LISTINGS.md.
 - Dropped 2026-11-02: #9 "set up with your agent" (setup page, copy prompt, Cursor link). Nate: no real use case.
 - Submit Jev! to madewithjev.com, the public gallery of Jev builds (Nate's call; it's public)
 
