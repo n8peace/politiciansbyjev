@@ -1,11 +1,14 @@
 import { askHeadless } from "@/lib/headless";
 import { MAX_LEN } from "@/lib/answer";
 import { limited } from "@/lib/limit";
+import { countCall } from "@/lib/count";
 
 // Public JSON API for agents and scripts:
 //   GET  /api/v1/ask?q=Best%20president%20ever
 //   POST /api/v1/ask  {"question": "Best president ever"}
-// Same answers, cache, guardrails, and rate limit as the site.
+// Same answers, cache, guardrails, and rate limit as the site. Each call that
+// reaches the function is counted as "Agent call" (via api); repeats the CDN
+// serves from its one-hour cache never reach it, so they aren't.
 
 export const maxDuration = 30;
 
@@ -21,12 +24,16 @@ async function answer(req: Request, question: unknown) {
     return Response.json({ error: `Send a question of 1 to ${MAX_LEN} characters.` }, { status: 400, headers: cors });
   }
   if (limited(req)) {
+    countCall(req, "api", "limited");
     return Response.json({ error: "Slow down: 20 questions a minute." }, { status: 429, headers: cors });
   }
   try {
-    return Response.json(await askHeadless(q), { headers: { ...cors, "Cache-Control": "public, s-maxage=3600" } });
+    const v = await askHeadless(q);
+    countCall(req, "api", v.status);
+    return Response.json(v, { headers: { ...cors, "Cache-Control": "public, s-maxage=3600" } });
   } catch (err) {
     console.error(err);
+    countCall(req, "api", "error");
     return Response.json({ error: "Jev didn’t answer. Try again." }, { status: 502, headers: cors });
   }
 }

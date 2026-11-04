@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const UPDATED = "2026-11-03";
+const UPDATED = "2026-11-04";
 
 export default function Privacy() {
   const h2 = "mt-10 text-lg font-semibold tracking-[-0.01em] text-ink";
@@ -19,7 +19,7 @@ export default function Privacy() {
     <PageShell>
       <h1 className="text-[2rem] leading-tight font-semibold tracking-[-0.02em] text-ink">Privacy</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        Updated <time dateTime={UPDATED}>November 3, 2026</time>
+        Updated <time dateTime={UPDATED}>November 4, 2026</time>
       </p>
       <p className="mt-4 text-lg leading-relaxed text-pretty text-ink">
         Politicians by Jev (Jev!) is run by Banana Intelligence. There are no accounts and no cookies. Here is
@@ -36,8 +36,8 @@ export default function Privacy() {
       <h2 className={h2}>Counting visits</h2>
       <p className={body}>
         We use Vercel Web Analytics, which doesn’t use cookies. It counts page views without the question in the
-        address, and counts asks and shares by type only, such as whether Jev answered or how a link was
-        shared, never with the question text.
+        address, and counts asks and shares by type only, such as whether Jev answered, how a link was shared,
+        or the ?ref= tag on the link you came in on, never with the question text.
       </p>
 
       <h2 className={h2}>Server logs and limits</h2>
@@ -50,7 +50,7 @@ export default function Privacy() {
       <h2 className={h2}>Agents and apps</h2>
       <p className={body}>
         Questions that arrive through the JSON API, the MCP server, or an AI app that connects to it are handled
-        the same way. The app you use may keep its own records under its own policy.
+        the same way, and counted the same way: by type, never with the question text. The app you use may keep its own records under its own policy.
       </p>
 
       <h2 className={h2}>What we don’t do</h2>

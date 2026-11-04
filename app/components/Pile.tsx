@@ -3,6 +3,7 @@
 import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
+import { currentRef } from "@/lib/ref";
 import Share from "@/app/components/Share";
 import { EXAMPLES } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
@@ -41,6 +42,13 @@ const anchor = (id: string, el: Element): Hover => {
   const x = Math.min(Math.max(b.left + b.width / 2, 16 + half), window.innerWidth - 16 - half);
   const below = b.top < 72;
   return { id, x, y: below ? b.bottom + 8 : b.top - 8, below };
+};
+
+// One ask, counted. See the Source note in the component.
+const counted = (source: string, result: string) => {
+  track("Ask", { source, result });
+  const ref = currentRef();
+  if (ref) track("Ref ask", { ref, result });
 };
 
 const prefersReducedMotion = () =>
@@ -509,7 +517,8 @@ export default function Pile({
   };
 
   // Where an ask came from, for the "Ask" count (Jev's north star). The
-  // question text itself is never sent.
+  // question text itself is never sent. Asks from a ?ref= link are also
+  // counted as "Ref ask", by tag.
   type Source = "typed" | "example" | "link" | "back" | "retry";
 
   type Preset = { scores: Record<string, number>; mode: Mode };
@@ -556,7 +565,7 @@ export default function Pile({
       }
       if (data.blocked) {
         setStatus("blocked");
-        track("Ask", { source, result: "refused" });
+        counted(source, "refused");
         return;
       }
       setMode(data.mode);
@@ -565,11 +574,11 @@ export default function Pile({
       const v = verdictFor(data.scores, data.mode as Mode);
       setVerdict(v);
       setStatus("done");
-      track("Ask", { source, result: v ? "answered" : "nobody" });
+      counted(source, v ? "answered" : "nobody");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Jev didn’t answer.");
       setStatus("error");
-      track("Ask", { source, result: "error" });
+      counted(source, "error");
     }
   }, []);
 

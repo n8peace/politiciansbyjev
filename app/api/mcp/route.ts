@@ -3,9 +3,12 @@ import { z } from "zod";
 import { MAX_LEN } from "@/lib/answer";
 import { askHeadless, headlessText, roster } from "@/lib/headless";
 import { limited } from "@/lib/limit";
+import { countCall } from "@/lib/count";
 
 // MCP server for agents: add https://politiciansbyjev.vercel.app/api/mcp to
-// any client that speaks Streamable HTTP. Same guardrails as the site.
+// any client that speaks Streamable HTTP. Same guardrails as the site. Each
+// tool call is counted as "Agent call" (via mcp, result "ask" or "list");
+// handshakes and tool listings aren't.
 
 export const maxDuration = 30;
 
@@ -49,7 +52,17 @@ const handler = createMcpHandler(
 );
 
 async function guarded(req: Request) {
-  if (limited(req)) return Response.json({ error: "Slow down: 20 requests a minute." }, { status: 429 });
+  if (limited(req)) {
+    countCall(req, "mcp", "limited");
+    return Response.json({ error: "Slow down: 20 requests a minute." }, { status: 429 });
+  }
+  if (req.method === "POST") {
+    const body = await req.clone().json().catch(() => null);
+    for (const m of Array.isArray(body) ? body : [body]) {
+      if (m?.method !== "tools/call") continue;
+      countCall(req, "mcp", m.params?.name === "list_politicians" ? "list" : "ask");
+    }
+  }
   return handler(req);
 }
 
