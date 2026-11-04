@@ -29,6 +29,8 @@ export default function PageShell({ children }: { children: React.ReactNode }) {
             Jev
           </a>
           . <Link href="/releases" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Release log</Link>
+          . <Link href="/privacy" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Privacy</Link>
+          . <Link href="/terms" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Terms</Link>
           . <Link href="/credits" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Photo credits</Link>
           . <a href="https://bananaintelligence.ai" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">A Banana Intelligence product</a>.
         </p>
