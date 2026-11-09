@@ -11,6 +11,13 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    date: "2026-11-09",
+    slug: "counts",
+    title: "Counting agent calls and tagged links",
+    what: "Questions sent through the JSON API and the MCP server are now counted by day, by how they arrived, and by what Jev answered. A link tagged with ?ref= counts the visits and questions it brings in. The tag is removed from the address once it is counted.",
+    why: "We can only grow what we can measure. Agents were invisible before, and so was which post sent people to the site. The question text is never counted, only its type, as the privacy page says.",
+  },
+  {
     date: "2026-11-02",
     slug: "weigh-in",
     title: "The weigh-in chart",
