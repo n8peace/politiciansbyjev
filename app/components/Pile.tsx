@@ -57,7 +57,6 @@ const prefersReducedMotion = () =>
 // A real, cached answer shown on the empty first screen, so a visitor sees
 // the payoff before typing. Never made up: the page passes Jev's actual answer.
 export type Example = { question: string; scores: Record<string, number>; mode: Mode };
-const EXAMPLE_RUNNERS = 3;
 
 export default function Pile({
   faces,
@@ -117,7 +116,7 @@ export default function Pile({
   const byId = useMemo(() => new Map(faces.map((f) => [f.id, f])), [faces]);
   const exampleVerdict = useMemo(() => (example ? verdictFor(example.scores, example.mode) : null), [example]);
   // The example's faces start in its card, not in the pile, so no one shows twice.
-  const exampleIds = useMemo(() => (exampleVerdict ? exampleVerdict.ids.slice(0, 1 + EXAMPLE_RUNNERS) : []), [exampleVerdict]);
+  const exampleIds = useMemo(() => (exampleVerdict ? exampleVerdict.ids.slice(0, 1) : []), [exampleVerdict]);
   const parkedIds = useRef(exampleIds);
   const openedWithQuestion = useRef(Boolean(initialQuestion));
   // Faces placed straight into their slot (no flight), e.g. the example on load.
@@ -720,7 +719,7 @@ export default function Pile({
         <main className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-8 *:pointer-events-auto">
           <h1
             className={`font-logo leading-none tracking-[-0.025em] text-jev ${
-              answered ? "text-[2rem]" : "text-8xl sm:text-[8rem]"
+              answered ? "text-[2rem]" : "text-8xl"
             }`}
           >
             {answered ? (
@@ -734,13 +733,13 @@ export default function Pile({
             )}
           </h1>
           {!answered && (
-            <p className="mt-3 text-center text-base text-pretty text-ink-soft">
+            <p className="mt-4 text-center text-base text-pretty text-ink-soft sm:mt-5 sm:text-xl">
               America’s 100 most famous politicians.<br className="sm:hidden" /> You ask. Jev, an AI, picks.
             </p>
           )}
 
           <form
-            className={`w-full max-w-xl ${answered ? "mt-4" : "mt-6"}`}
+            className={`w-full max-w-xl ${answered ? "mt-4" : "mt-8 sm:mt-12"}`}
             onSubmit={(e) => {
               e.preventDefault();
               if (!question.trim()) inputEl.current?.focus();
@@ -791,7 +790,7 @@ export default function Pile({
           {!answered && (
             // Phones get one swipeable row, the same as under an answer, so the
             // examples never run into the pile on short screens.
-            <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
+            <div className="no-scrollbar -mx-4 mt-6 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:max-w-xl sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
               {EXAMPLES.filter((q) => q !== example?.question || !exampleVerdict)
                 .slice(0, narrow ? EXAMPLES.length : 3)
                 .map((q) => (
@@ -819,7 +818,7 @@ export default function Pile({
             aria-live="polite"
             className={`w-full outline-none ${
               status === "done" || status === "blocked" || status === "error"
-                ? "mt-6 rounded-2xl border border-line bg-paper px-4 pb-5 shadow-[0_1px_2px_rgba(21,21,21,0.04),0_8px_24px_rgba(21,21,21,0.06)]"
+                ? "mt-8 pb-8"
                 : ""
             }`}
           >
@@ -857,13 +856,13 @@ export default function Pile({
             )}
 
             {status === "done" && verdict && top && (
-              <section className="flex flex-col items-center pt-6">
+              <section className="flex flex-col items-center pt-4 sm:pt-8">
                 {slot(top.id, size.hero)}
                 {/* The answer is the biggest thing on screen: name, then how sure. */}
-                <h2 className="rise mt-5 text-center font-logo text-5xl leading-none tracking-[-0.02em] text-balance text-ink [animation-delay:240ms] motion-reduce:[animation-delay:0ms] sm:text-[4rem]">
+                <h2 className="rise mt-6 text-center font-logo text-5xl leading-none tracking-[-0.02em] text-balance text-ink [animation-delay:240ms] motion-reduce:[animation-delay:0ms] sm:text-[4rem]">
                   {top.name}
                 </h2>
-                <p className="rise mt-3 flex items-baseline justify-center gap-2 [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
+                <p className="rise mt-4 flex items-baseline justify-center gap-2 [animation-delay:300ms] motion-reduce:[animation-delay:0ms]">
                   {sure ? (
                     <>
                       <span className="text-[2rem] leading-none font-semibold tracking-[-0.02em] text-ink">{pct(scores[top.id])}</span>
@@ -880,15 +879,14 @@ export default function Pile({
                   </p>
                 )}
 
-                <div className="mt-5">
+                <div className="mt-8">
                   <Share question={asked} text={shareText} />
                 </div>
-                <p className="mt-3 text-center text-xs text-ink-soft">
+                <p className="mt-4 text-center text-xs text-ink-soft">
                   {sure ? (
                     <>
                       “{asked}” · {kind === "fact" ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}{" "}
-                      Mad about it?{" "}
-                      <a href="/how-it-works" className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                                            <a href="/how-it-works" className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
                         Blame Jev.
                       </a>
                     </>
@@ -897,7 +895,7 @@ export default function Pile({
                   )}
                 </p>
                 {canWeigh(scores, mode) && (
-                  <figure className="mt-8 w-full">
+                  <figure className="mt-12 w-full">
                     <figcaption className="text-center text-sm font-medium text-ink-soft">All 100, weighed</figcaption>
                     {/* Each face lands on its own spot; a dashed ring marks a pick shown above. */}
                     <div ref={chartEl} className="relative mt-3 w-full" style={{ height: chart?.height ?? (narrow ? 180 : 240) }}>
@@ -927,7 +925,7 @@ export default function Pile({
                   <button
                     type="button"
                     onClick={() => setOthersOpen(true)}
-                    className="mt-6 inline-flex h-11 items-center gap-1 rounded-full px-4 text-sm font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
+                    className="mt-8 inline-flex h-11 items-center gap-1 rounded-full px-4 text-sm font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
                   >
                     See who else floated up ({others.length})
                   </button>
@@ -979,9 +977,9 @@ export default function Pile({
             )}
 
             {(status === "done" || status === "blocked" || status === "error") && (
-              <div className="mt-6 flex flex-col items-center border-t border-line pt-5">
+              <div className="mt-12 flex flex-col items-center border-t border-line pt-8">
                 <h3 className="text-sm font-medium text-ink-soft">Ask another</h3>
-                <div className="no-scrollbar -mx-4 mt-3 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
+                <div className="no-scrollbar -mx-4 mt-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 [mask-image:linear-gradient(to_right,black_85%,transparent)] sm:mx-0 sm:w-full sm:justify-center sm:overflow-visible sm:px-0 sm:[mask-image:none]">
                   {more.slice(0, narrow ? more.length : 3).map((q) => (
                     <button key={q} type="button" onClick={() => ask(q, "push", "example")} className={chip}>
                       {q}
@@ -1096,14 +1094,13 @@ function ExampleCard({
   onOpen: () => void;
 }) {
   const top = byId.get(verdict.ids[0])!;
-  const runners = verdict.ids.slice(1, 1 + EXAMPLE_RUNNERS);
   const p = pct(example.scores[top.id]);
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={`Jev on “${example.question}”: ${top.name}, ${p}. Open the full answer.`}
-      className="group mt-6 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-4 text-left transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
+      className="group mt-8 w-full max-w-xl rounded-2xl border border-line bg-paper px-4 py-5 text-left sm:mt-12 transition-[border-color,transform] duration-150 ease-out hover:border-ink/20 active:scale-[0.99]"
     >
       <span className="flex items-center gap-4">
         <Still id={top.id} src={top.img} px={narrow ? 72 : 88} slot={slot} eager />
@@ -1116,32 +1113,12 @@ function ExampleCard({
             <span className="font-semibold text-ink">{p}</span> {verdict.label}
           </span>
         </span>
+        <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="hidden shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5 sm:block">
+          <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </span>
-      {runners.length > 0 && (
-        <span className="mt-4 flex items-center gap-3 border-t border-line pt-3">
-          <span className="flex shrink-0 -space-x-2">
-            {runners.map((id) => (
-              <Still key={id} id={id} src={byId.get(id)!.img} px={32} slot={slot} />
-            ))}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-            Then {runners.slice(0, 2).map((id) => shortName(byId.get(id)!.name, byId)).join(", ")}
-            {verdict.ids.length > 3 ? ` +${verdict.ids.length - 3}` : ""}
-          </span>
-          <svg aria-hidden viewBox="0 0 16 16" width="16" height="16" className="shrink-0 text-ink-soft transition-transform duration-150 group-hover:translate-x-0.5">
-            <path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      )}
     </button>
   );
-}
-
-// Last name, unless two of the 100 share it ("F. Roosevelt", "T. Roosevelt").
-function shortName(name: string, byId: Map<string, Face>) {
-  const last = name.split(" ").pop()!;
-  const shared = [...byId.values()].filter((f) => f.name.split(" ").pop() === last).length > 1;
-  return shared ? `${name[0]}. ${last}` : last;
 }
 
 // The example's photos are in the server HTML, so they show on first paint.
