@@ -11,6 +11,13 @@ export type Release = {
 
 export const RELEASES: Release[] = [
   {
+    date: "2026-11-10",
+    slug: "polish",
+    title: "More room on the first screen and the answer",
+    what: "The first screen has more space between the wordmark, the question box and the example. The answer no longer sits in a boxed panel, and the example card is shorter.",
+    why: "Less on the screen at once, so the one thing to do, ask a question, is easier to see. The words and the scores did not change.",
+  },
+  {
     date: "2026-11-09",
     slug: "counts",
     title: "Counting agent calls and tagged links",
