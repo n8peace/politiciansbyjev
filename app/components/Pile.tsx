@@ -4,6 +4,7 @@ import Matter from "matter-js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
 import { currentRef } from "@/lib/ref";
+import FooterLink from "@/app/components/FooterLink";
 import Share from "@/app/components/Share";
 import { EXAMPLES } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
@@ -852,6 +853,7 @@ export default function Pile({
                     <p className="mt-2 text-base text-ink-soft">No one scored high enough to name.</p>
                   </>
                 )}
+                <CandidateLink />
               </div>
             )}
 
@@ -894,6 +896,7 @@ export default function Pile({
                     <>Answered only from politicians who have said so publicly.</>
                   )}
                 </p>
+                <CandidateLink />
                 {canWeigh(scores, mode) && (
                   <figure className="mt-12 w-full">
                     <figcaption className="text-center text-sm font-medium text-ink-soft">All 100, weighed</figcaption>
@@ -990,6 +993,9 @@ export default function Pile({
             )}
           </div>
         </main>
+        <footer className="mx-auto max-w-3xl px-4 pb-8 text-center *:pointer-events-auto">
+          <FooterLink />
+        </footer>
       </div>
 
       {/* While Jev weighs the pile, a soft band of light passes over it. */}
@@ -1075,6 +1081,20 @@ export default function Pile({
         </div>
       )}
     </div>
+  );
+}
+
+function CandidateLink() {
+  return (
+    <a
+      href="https://plainballot.com/?ct=jev"
+      target="_blank"
+      rel="noopener"
+      className="mt-3 inline-flex min-h-11 items-center text-sm text-ink-soft underline decoration-ink/30 underline-offset-4 hover:text-ink hover:decoration-ink"
+    >
+      See where your own candidates stand
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
   );
 }
 

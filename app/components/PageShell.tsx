@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Close from "@/app/components/Close";
+import FooterLink from "@/app/components/FooterLink";
 
 // The frame for Jev's text pages: wordmark home, the other pages, and an X.
 export default function PageShell({ children }: { children: React.ReactNode }) {
@@ -31,9 +32,9 @@ export default function PageShell({ children }: { children: React.ReactNode }) {
           . <Link href="/releases" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Release log</Link>
           . <Link href="/privacy" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Privacy</Link>
           . <Link href="/terms" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Terms</Link>
-          . <Link href="/credits" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Photo credits</Link>
-          . <a href="https://bananaintelligence.ai" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">A Banana Intelligence product</a>.
+          . <Link href="/credits" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Photo credits</Link>.
         </p>
+        <p className="mt-3"><FooterLink /></p>
       </footer>
     </div>
   );
