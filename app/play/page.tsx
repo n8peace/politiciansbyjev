@@ -7,6 +7,8 @@ const TITLE = "A silly game with politicians";
 const DESCRIPTION =
   "A free, silly party game. Ask a question, guess Jev’s pick, then watch 100 famous US politicians float or sink.";
 
+const OG_ALT = "Jev! America’s 100 most famous politicians. You ask. Jev picks.";
+
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
@@ -22,8 +24,6 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [{ url: "/og", alt: OG_ALT }] },
 };
-
-const OG_ALT = "Jev! America’s 100 most famous politicians. You ask. Jev picks.";
 
 const STEPS = [
   "Take turns asking a question. Anything silly works.",
