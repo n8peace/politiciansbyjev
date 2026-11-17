@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Privacy",
   description: "What Politicians by Jev keeps when you ask a question: no accounts, no cookies, and answers stored by question for 30 days.",
   alternates: { canonical: "/privacy" },
+  openGraph: { url: "/privacy", images: "/og" },
 };
 
 const UPDATED = "2026-11-04";

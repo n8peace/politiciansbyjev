@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Terms",
   description: "The terms for using Politicians by Jev: a free entertainment demo whose answers are an AI model's opinion, not fact.",
   alternates: { canonical: "/terms" },
+  openGraph: { url: "/terms", images: "/og" },
 };
 
 const UPDATED = "2026-11-03";
