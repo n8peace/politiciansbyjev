@@ -14,7 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...INDEXED.map((q) => ({ url: askUrl(q), lastModified: now, changeFrequency: "daily" as const, priority: 0.6 })),
     ...INDEXED.map((q) => ({ url: `${SITE_URL}${questionPath(q)}`, lastModified: new Date("2026-11-17"), changeFrequency: "daily" as const, priority: 0.6 })),
     { url: `${SITE_URL}/credits`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${SITE_URL}/privacy`, lastModified: new Date("2026-11-03"), changeFrequency: "yearly", priority: 0.1 },
-    { url: `${SITE_URL}/terms`, lastModified: new Date("2026-11-03"), changeFrequency: "yearly", priority: 0.1 },
+    { url: `${SITE_URL}/privacy`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
+    { url: `${SITE_URL}/terms`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
   ];
 }
