@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 const STEPS = [
   "Take turns asking a question. Anything silly works.",
   "Before the reveal, everyone guesses Jev’s pick.",
-  "Watch the 100 float or sink. Closest guess wins the round.",
+  "Watch the 100 float or sink. Whoever guessed Jev’s pick wins the round.",
 ];
 
 export default function Play() {
