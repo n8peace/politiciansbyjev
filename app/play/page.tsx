@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
+import { FULL_NAME } from "@/lib/site";
 
 const TITLE = "A silly game with politicians";
 const DESCRIPTION =
@@ -10,9 +11,19 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: "/play" },
-  openGraph: { title: TITLE, description: DESCRIPTION, url: "/play", images: "/og" },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: "/og" },
+  openGraph: {
+    siteName: FULL_NAME,
+    type: "website",
+    locale: "en_US",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/play",
+    images: [{ url: "/og", width: 1200, height: 630, alt: OG_ALT }],
+  },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: [{ url: "/og", alt: OG_ALT }] },
 };
+
+const OG_ALT = "Jev! America’s 100 most famous politicians. You ask. Jev picks.";
 
 const STEPS = [
   "Take turns asking a question. Anything silly works.",
