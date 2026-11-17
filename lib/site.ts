@@ -9,6 +9,7 @@ export const SITE_NAME = "Jev!";
 // name, so the site goes by its full name and keeps "Jev!" as the short one.
 export const FULL_NAME = "Politicians by Jev";
 export const REPO_URL = "https://github.com/n8peace/politiciansbyjev";
+export const CONTACT_EMAIL = "support@bananaintelligence.ai";
 export const JEV_URL = "https://vercel.com/ai-gateway/models/jev";
 
 export const TITLE = "Politicians by Jev · A silly free game, 100 US politicians";
@@ -50,3 +51,9 @@ export const EXAMPLES = [
 export const INDEXED = EXAMPLES.filter((q) => !/corrupt/i.test(q));
 
 export const askUrl = (q: string) => `${SITE_URL}/?q=${encodeURIComponent(q)}`;
+
+// Readable, stable URL piece for a question: "Who’s the richest?" -> "whos-the-richest".
+export const slugFor = (q: string) =>
+  q.toLowerCase().replace(/[’']/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export const questionBySlug = (slug: string) => INDEXED.find((q) => slugFor(q) === slug);
+export const questionPath = (q: string) => `/questions/${slugFor(q)}`;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { getAnswer } from "@/lib/answer";
 import { faceSrc, politicians } from "@/lib/politicians";
-import { INDEXED, SITE_URL, askUrl } from "@/lib/site";
+import { INDEXED, SITE_URL, askUrl, questionPath } from "@/lib/site";
 import { pct, verdictFor } from "@/lib/verdict";
 
 const TITLE = "What Jev says about America’s politicians";
@@ -67,7 +67,7 @@ export default async function Questions() {
           const next = v ? v.ids.slice(1, 4).map((id) => byId.get(id)!) : [];
           return (
             <li key={q}>
-              <Link href={`/?q=${encodeURIComponent(q)}`} className="group flex items-center gap-4 py-5">
+              <Link href={questionPath(q)} className="group flex items-center gap-4 py-5">
                 {top ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
