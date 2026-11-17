@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { CONTACT_EMAIL, REPO_URL } from "@/lib/site";
+import { CONTACT_EMAIL, FULL_NAME, REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy",
   description: "What Politicians by Jev keeps when you ask a question: no accounts, no cookies, and answers stored by question for 30 days.",
   alternates: { canonical: "/privacy" },
-  openGraph: { url: "/privacy", images: "/og" },
+  openGraph: { siteName: FULL_NAME, type: "website", locale: "en_US", url: "/privacy", images: "/og" },
 };
 
 const UPDATED = "2026-11-04";

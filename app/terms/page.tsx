@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { CONTACT_EMAIL, REPO_URL } from "@/lib/site";
+import { CONTACT_EMAIL, FULL_NAME, REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Terms",
   description: "The terms for using Politicians by Jev: a free entertainment demo whose answers are an AI model's opinion, not fact.",
   alternates: { canonical: "/terms" },
-  openGraph: { url: "/terms", images: "/og" },
+  openGraph: { siteName: FULL_NAME, type: "website", locale: "en_US", url: "/terms", images: "/og" },
 };
 
 const UPDATED = "2026-11-03";

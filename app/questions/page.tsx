@@ -3,7 +3,7 @@ import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { getAnswer } from "@/lib/answer";
 import { faceSrc, politicians } from "@/lib/politicians";
-import { INDEXED, SITE_URL, askUrl, questionPath } from "@/lib/site";
+import { INDEXED, SITE_URL, questionPath } from "@/lib/site";
 import { pct, verdictFor } from "@/lib/verdict";
 
 const TITLE = "What Jev says about America’s politicians";
@@ -40,7 +40,7 @@ export default async function Questions() {
     itemListElement: rows.map(({ q, v, scores }, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: askUrl(q),
+      url: `${SITE_URL}${questionPath(q)}`,
       name: v ? `${q}: ${byId.get(v.ids[0])!.name} (${pct(scores[v.ids[0]])})` : q,
     })),
     isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
