@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: { siteName: FULL_NAME, type: "website", locale: "en_US", url: "/terms", images: "/og" },
 };
 
-const UPDATED = "2026-11-03";
+const UPDATED = "2026-11-17";
 
 export default function Terms() {
   const h2 = "mt-10 text-lg font-semibold tracking-[-0.01em] text-ink";
@@ -20,7 +20,7 @@ export default function Terms() {
     <PageShell>
       <h1 className="text-[2rem] leading-tight font-semibold tracking-[-0.02em] text-ink">Terms</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        Updated <time dateTime={UPDATED}>November 3, 2026</time>
+        Updated <time dateTime={UPDATED}>November 17, 2026</time>
       </p>
       <p className="mt-4 text-lg leading-relaxed text-pretty text-ink">
         Politicians by Jev (Jev!) is a free demo run by Banana Intelligence. By using the site, its JSON API,
