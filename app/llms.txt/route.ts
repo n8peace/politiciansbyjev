@@ -4,7 +4,7 @@ import { EXAMPLES, REPO_URL, SITE_URL } from "@/lib/site";
 export function GET() {
   const body = `# Jev!
 
-> Ask anything about America’s 100 most famous politicians. Jev, TypeSafe AI’s decision model, scores all 100 with a yes/no probability each and picks the top. An open-source Jev demo. Jev’s opinion, not fact.
+> A silly free game: ask anything about America’s 100 most famous politicians and watch them float or sink. Jev, TypeSafe AI’s decision model, scores all 100 with a yes/no probability each and picks the top. An open-source Jev demo. Jev’s opinion, not fact.
 
 ## Use it from an agent
 
@@ -16,6 +16,7 @@ export function GET() {
 ## Pages
 
 - [Home](${SITE_URL}/): ask a question
+- [Play: a silly game with politicians](${SITE_URL}/play): free party game, simple rules for taking turns
 - [How it works](${SITE_URL}/how-it-works): methodology, thresholds, guardrails, code
 - [How Jev scores a question](${SITE_URL}/how-it-works/scoring): the method, with real numbers: one yes/no call per politician, the 80% and 55% bars, what gets refused
 - [Release log](${SITE_URL}/releases): every feature that went live, with its date and reason

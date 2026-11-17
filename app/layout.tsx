@@ -50,12 +50,15 @@ const website = {
 
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
+  "@type": ["WebApplication", "VideoGame"],
   name: FULL_NAME,
   alternateName: SITE_NAME,
   url: SITE_URL,
   description: DESCRIPTION,
-  applicationCategory: "EntertainmentApplication",
+  applicationCategory: "GameApplication",
+  genre: ["Party game", "Trivia", "Humor"],
+  gamePlatform: "Web browser",
+  playMode: ["SinglePlayer", "MultiPlayer"],
   operatingSystem: "Any",
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   isAccessibleForFree: true,

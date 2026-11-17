@@ -12,6 +12,9 @@ export default function PageShell({ children }: { children: React.ReactNode }) {
             Jev!
           </Link>
           <nav className="flex items-center gap-1 text-sm text-ink-soft">
+            <Link href="/play" className="hidden h-11 items-center rounded-full px-3 hover:bg-ink/5 hover:text-ink sm:inline-flex">
+              Play
+            </Link>
             <Link href="/how-it-works" className="inline-flex h-11 items-center rounded-full px-3 hover:bg-ink/5 hover:text-ink">
               How it works
             </Link>
@@ -29,6 +32,7 @@ export default function PageShell({ children }: { children: React.ReactNode }) {
           <a href="https://vercel.com/ai-gateway/models/jev" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
             Jev
           </a>
+          . <Link href="/play" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Play</Link>
           . <Link href="/releases" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Release log</Link>
           . <Link href="/privacy" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Privacy</Link>
           . <Link href="/terms" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Terms</Link>

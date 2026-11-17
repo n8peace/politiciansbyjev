@@ -708,6 +708,9 @@ export default function Pile({
             A Banana Intelligence product
           </a>
           <span className="flex items-center gap-3">
+            <a href="/play" className="inline-flex h-11 items-center px-1 hover:text-ink">
+              Play
+            </a>
             <a href="/how-it-works" className="inline-flex h-11 items-center px-1 hover:text-ink">
               How it works
             </a>

@@ -11,10 +11,12 @@ export const FULL_NAME = "Politicians by Jev";
 export const REPO_URL = "https://github.com/n8peace/politiciansbyjev";
 export const JEV_URL = "https://vercel.com/ai-gateway/models/jev";
 
-export const TITLE = "Politicians by Jev · Ask Jev AI about 100 US politicians";
+export const TITLE = "Politicians by Jev · A silly free game, 100 US politicians";
 export const DESCRIPTION =
-  "Ask anything about America’s 100 most famous politicians. Jev, TypeSafe AI’s model, scores all 100 in under a second. An open-source Jev demo. Blame Jev.";
+  "A silly free game: ask anything and watch 100 famous US politicians float or sink. Jev, TypeSafe AI’s model, scores all 100 in under a second. Blame Jev.";
 export const KEYWORDS = [
+  "silly game with politicians",
+  "free party game",
   "Jev",
   "Jev AI",
   "Jev model",
