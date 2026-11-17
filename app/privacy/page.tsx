@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { REPO_URL } from "@/lib/site";
+import { CONTACT_EMAIL, REPO_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy",
@@ -64,6 +64,10 @@ export default function Privacy() {
         Open an issue on{" "}
         <a href={`${REPO_URL}/issues`} className={link}>
           GitHub
+        </a>
+        . Or email{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`} className={link}>
+          {CONTACT_EMAIL}
         </a>
         . See also the{" "}
         <Link href="/terms" className={link}>
