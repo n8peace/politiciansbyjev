@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Pile, { type Example } from "@/app/components/Pile";
-import { getAnswer, MAX_LEN, normalize } from "@/lib/answer";
+import { getAnswer, MAX_LEN } from "@/lib/answer";
 import { politicians, faceSrc, faceSmallSrc } from "@/lib/politicians";
-import { INDEXED, questionPath } from "@/lib/site";
+import { questionBySlug, questionPath, slugFor } from "@/lib/site";
 import { pct, verdictFor } from "@/lib/verdict";
 
 const EXAMPLE_QUESTION = "Best president ever";
@@ -23,7 +23,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const name = (id: string) => politicians.find((p) => p.id === id)!.name;
   const image = `/og?q=${encodeURIComponent(q)}`;
   // A popular question's canonical is its own page, so search engines list one URL per question.
-  const known = INDEXED.find((x) => normalize(x) === normalize(q));
+  const known = questionBySlug(slugFor(q));
   const url = known ? questionPath(known) : `/?q=${encodeURIComponent(q)}`;
 
   if (!answered || !v) {
