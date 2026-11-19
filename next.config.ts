@@ -15,13 +15,13 @@ const nextConfig: NextConfig = {
   assetPrefix: BASE,
   async rewrites() {
     return {
-      // BASE and everything under it is the same app. The agent API and MCP
-      // server stay at the root only, so the firewall rule on /api keeps
-      // covering them; the page's own ask call is the one API route under BASE.
+      // BASE and everything under it is the same app, except the paid and
+      // generated routes: /api/* and /og never answer under BASE, so the
+      // firewall rule on /api and /og (root paths) covers every call to them.
+      // natepeace.com sends BASE/api/ask and BASE/og to the root routes here.
       beforeFiles: [
         { source: BASE, destination: "/" },
-        { source: `${BASE}/api/ask`, destination: "/api/ask" },
-        { source: `${BASE}/:path((?!api/).+)`, destination: "/:path" },
+        { source: `${BASE}/:path((?!(?:api|og)(?:/|$)).+)`, destination: "/:path" },
       ],
     };
   },

@@ -8,7 +8,8 @@ follow, and everyone who missed turns gray.
 Play: https://www.natepeace.com/games/politicians-by-jev · Methodology: https://www.natepeace.com/games/politicians-by-jev/how-it-works
 
 natepeace.com rewrites `/games/politicians-by-jev` to this app, which serves every page under that path
-(`BASE` in `lib/site.ts`). The app's own domain keeps the agent addresses at its root and sends its
+(`BASE` in `lib/site.ts`). `/api` and `/og` answer only at the root; natepeace.com sends the page's
+ask call and share card there. The app's own domain keeps the agent addresses at its root and sends its
 human pages to natepeace.com with a temporary redirect (`next.config.ts`).
 
 - Thresholds and verdict rules: `lib/verdict.ts` (80% sure, 55% thinks so, 40% best guess)
