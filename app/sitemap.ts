@@ -1,19 +1,19 @@
 import type { MetadataRoute } from "next";
 import { LATEST } from "@/lib/releases";
-import { INDEXED, SITE_URL, questionPath } from "@/lib/site";
+import { HOME_URL, INDEXED, questionPath } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   return [
-    { url: SITE_URL, lastModified: now, changeFrequency: "weekly", priority: 1 },
-    { url: `${SITE_URL}/play`, lastModified: new Date("2026-11-16"), changeFrequency: "monthly", priority: 0.9 },
-    { url: `${SITE_URL}/how-it-works`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${SITE_URL}/how-it-works/scoring`, lastModified: new Date("2026-11-03"), changeFrequency: "monthly", priority: 0.7 },
-    { url: `${SITE_URL}/releases`, lastModified: new Date(LATEST), changeFrequency: "weekly", priority: 0.6 },
-    { url: `${SITE_URL}/questions`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
-    ...INDEXED.map((q) => ({ url: `${SITE_URL}${questionPath(q)}`, lastModified: new Date("2026-11-17"), changeFrequency: "daily" as const, priority: 0.6 })),
-    { url: `${SITE_URL}/credits`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
-    { url: `${SITE_URL}/privacy`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
-    { url: `${SITE_URL}/terms`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
+    { url: HOME_URL, lastModified: now, changeFrequency: "weekly", priority: 1 },
+    { url: `${HOME_URL}/play`, lastModified: new Date("2026-11-16"), changeFrequency: "monthly", priority: 0.9 },
+    { url: `${HOME_URL}/how-it-works`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${HOME_URL}/how-it-works/scoring`, lastModified: new Date("2026-11-03"), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${HOME_URL}/releases`, lastModified: new Date(LATEST), changeFrequency: "weekly", priority: 0.6 },
+    { url: `${HOME_URL}/questions`, lastModified: now, changeFrequency: "daily", priority: 0.8 },
+    ...INDEXED.map((q) => ({ url: `${HOME_URL}${questionPath(q)}`, lastModified: new Date("2026-11-17"), changeFrequency: "daily" as const, priority: 0.6 })),
+    { url: `${HOME_URL}/credits`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${HOME_URL}/privacy`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
+    { url: `${HOME_URL}/terms`, lastModified: new Date("2026-11-17"), changeFrequency: "yearly", priority: 0.1 },
   ];
 }

@@ -5,7 +5,11 @@ on Vercel AI Gateway. America's 100 most famous politicians sit in a physics pil
 Jev scores every one of them (100 yes/no calls, under a second); the top pick floats out, runners-up
 follow, and everyone who missed turns gray.
 
-Live: https://politiciansbyjev.vercel.app · Methodology: https://politiciansbyjev.vercel.app/how-it-works
+Play: https://www.natepeace.com/games/politicians-by-jev · Methodology: https://www.natepeace.com/games/politicians-by-jev/how-it-works
+
+natepeace.com rewrites `/games/politicians-by-jev` to this app, which serves every page under that path
+(`BASE` in `lib/site.ts`). The app's own domain keeps the agent addresses at its root and sends its
+human pages to natepeace.com with a temporary redirect (`next.config.ts`).
 
 - Thresholds and verdict rules: `lib/verdict.ts` (80% sure, 55% thinks so, 40% best guess)
 - Jev calls, question sorting, guardrails, and the shared 30-day answer store: `lib/answer.ts`

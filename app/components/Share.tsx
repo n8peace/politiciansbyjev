@@ -2,6 +2,7 @@
 
 import { track } from "@vercel/analytics";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { BASE, at } from "@/lib/site";
 
 // Share the verdict. Phones get the native share sheet (with the result card
 // attached when the platform allows files); desktops copy the link, which
@@ -13,7 +14,7 @@ export default function Share({ question, text }: { question: string; text: stri
   // after the user's click.
   const [card, setCard] = useState<File | null>(null);
   const url = typeof window === "undefined" ? "" : shareUrl(question);
-  const image = `/og?q=${encodeURIComponent(question)}`;
+  const image = at(`/og?q=${encodeURIComponent(question)}`);
 
   useEffect(() => {
     if (!native) return;
@@ -103,7 +104,7 @@ const noop = () => () => {};
 const canShareNatively = () => typeof navigator.share === "function" && matchMedia("(pointer: coarse)").matches;
 
 function shareUrl(question: string) {
-  const u = new URL(window.location.origin);
+  const u = new URL(BASE, window.location.origin);
   u.searchParams.set("q", question);
   return u.toString();
 }

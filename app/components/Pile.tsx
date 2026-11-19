@@ -6,7 +6,7 @@ import { track } from "@vercel/analytics";
 import { currentRef } from "@/lib/ref";
 import FooterLink from "@/app/components/FooterLink";
 import Share from "@/app/components/Share";
-import { EXAMPLES } from "@/lib/site";
+import { EXAMPLES, at } from "@/lib/site";
 import { LIKELY, pct, verdictFor, type Mode, type Verdict } from "@/lib/verdict";
 import { canWeigh, weighIn } from "@/lib/weigh";
 
@@ -555,7 +555,7 @@ export default function Pile({
       if (preset) {
         data = { mode: preset.mode, kind: "opinion", scores: preset.scores };
       } else {
-        const res = await fetch("/api/ask", {
+        const res = await fetch(at("/api/ask"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: trimmed }),
@@ -708,13 +708,13 @@ export default function Pile({
             A Banana Intelligence product
           </a>
           <span className="flex items-center gap-3">
-            <a href="/play" className="inline-flex h-11 items-center px-1 hover:text-ink">
+            <a href={at("/play")} className="inline-flex h-11 items-center px-1 hover:text-ink">
               Play
             </a>
-            <a href="/how-it-works" className="inline-flex h-11 items-center px-1 hover:text-ink">
+            <a href={at("/how-it-works")} className="inline-flex h-11 items-center px-1 hover:text-ink">
               How it works
             </a>
-            <a href="/credits" className="hidden h-11 items-center px-1 hover:text-ink sm:inline-flex">
+            <a href={at("/credits")} className="hidden h-11 items-center px-1 hover:text-ink sm:inline-flex">
               Photo credits
             </a>
           </span>
@@ -891,7 +891,7 @@ export default function Pile({
                   {sure ? (
                     <>
                       “{asked}” · {kind === "fact" ? "Jev’s read of the public record, not a fact-check." : "Jev’s opinion, not fact."}{" "}
-                                            <a href="/how-it-works" className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+                                            <a href={at("/how-it-works")} className="font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
                         Blame Jev.
                       </a>
                     </>

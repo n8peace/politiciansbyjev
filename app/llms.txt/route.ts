@@ -1,4 +1,4 @@
-import { EXAMPLES, REPO_URL, SITE_URL } from "@/lib/site";
+import { EXAMPLES, HOME_URL, REPO_URL, SITE_URL } from "@/lib/site";
 
 // A plain-text guide for AI agents and crawlers (llms.txt convention).
 export function GET() {
@@ -15,12 +15,12 @@ export function GET() {
 
 ## Pages
 
-- [Home](${SITE_URL}/): ask a question
-- [Play: a silly game with politicians](${SITE_URL}/play): free party game, simple rules for taking turns
-- [How it works](${SITE_URL}/how-it-works): methodology, thresholds, guardrails, code
-- [How Jev scores a question](${SITE_URL}/how-it-works/scoring): the method, with real numbers: one yes/no call per politician, the 80% and 55% bars, what gets refused
-- [Release log](${SITE_URL}/releases): every feature that went live, with its date and reason
-- [What Jev says](${SITE_URL}/questions): Jev’s answers to common questions
+- [Home](${HOME_URL}): ask a question
+- [Play: a silly game with politicians](${HOME_URL}/play): free party game, simple rules for taking turns
+- [How it works](${HOME_URL}/how-it-works): methodology, thresholds, guardrails, code
+- [How Jev scores a question](${HOME_URL}/how-it-works/scoring): the method, with real numbers: one yes/no call per politician, the 80% and 55% bars, what gets refused
+- [Release log](${HOME_URL}/releases): every feature that went live, with its date and reason
+- [What Jev says](${HOME_URL}/questions): Jev’s answers to common questions
 - [Source code](${REPO_URL}): MIT
 
 ## Example questions

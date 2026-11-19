@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import PageShell from "@/app/components/PageShell";
 import { getAnswer } from "@/lib/answer";
 import { faceSrc, politicians } from "@/lib/politicians";
-import { SITE_URL, askUrl, questionBySlug, questionPath } from "@/lib/site";
+import { HOME_URL, askPath, questionBySlug, questionPath, at } from "@/lib/site";
 import { pct, verdictFor } from "@/lib/verdict";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -62,15 +62,15 @@ export default async function QuestionPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: `Jev says: ${q}`,
-    url: `${SITE_URL}${questionPath(q)}`,
-    isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
+    url: `${HOME_URL}${questionPath(q)}`,
+    isPartOf: { "@type": "WebSite", name: "Jev!", url: HOME_URL },
   };
 
   return (
     <PageShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <p className="text-sm text-ink-soft">
-        <Link href="/questions" className="inline-flex min-h-11 items-center underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+        <Link href={at("/questions")} className="inline-flex min-h-11 items-center underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
           What Jev says
         </Link>
       </p>
@@ -109,14 +109,14 @@ export default async function QuestionPage({ params }: Props) {
 
       <p className="mt-6 text-base leading-relaxed text-pretty text-ink-soft">
         Scored across all 100 politicians by Jev. Jev’s opinion, not fact.{" "}
-        <Link href="/how-it-works" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+        <Link href={at("/how-it-works")} className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
           How it works
         </Link>
         .
       </p>
 
       <Link
-        href={askUrl(q).replace(SITE_URL, "")}
+        href={askPath(q)}
         className="mt-8 inline-flex min-h-11 items-center rounded-full bg-jev px-6 text-base font-semibold text-white hover:opacity-90"
       >
         Play with this question

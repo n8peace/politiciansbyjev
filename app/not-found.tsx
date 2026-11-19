@@ -1,5 +1,6 @@
 import Link from "next/link";
 import FooterLink from "@/app/components/FooterLink";
+import { at } from "@/lib/site";
 
 export default function NotFound() {
   return (
@@ -11,7 +12,7 @@ export default function NotFound() {
         </h1>
         <p className="mt-3 text-base text-ink-soft">That page doesn’t exist.</p>
         <Link
-          href="/"
+          href={at("/")}
           className="mt-8 inline-flex h-11 items-center rounded-full bg-jev px-6 text-base font-medium text-paper transition-transform duration-150 active:scale-[0.97]"
         >
           Back to the pile

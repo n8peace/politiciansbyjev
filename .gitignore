@@ -45,3 +45,6 @@ next-env.d.ts
 
 # daily work block state (local only)
 .daily/
+
+# seolint reads a copy of the built pages at their public path
+/.seolint/

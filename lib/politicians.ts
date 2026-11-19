@@ -1,4 +1,5 @@
 import data from "@/data/politicians.json";
+import { at } from "@/lib/site";
 
 export type Politician = {
   id: string;
@@ -18,5 +19,5 @@ export type Politician = {
 export const politicians = data as Politician[];
 
 // Portraits are saved locally by scripts/fetch-faces.mjs.
-export const faceSrc = (id: string) => `/faces/${id}.jpg`;
-export const faceSmallSrc = (id: string) => `/faces/sm/${id}.jpg`;
+export const faceSrc = (id: string) => at(`/faces/${id}.jpg`);
+export const faceSmallSrc = (id: string) => at(`/faces/sm/${id}.jpg`);

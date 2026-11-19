@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { CONTACT_EMAIL, FULL_NAME, REPO_URL } from "@/lib/site";
+import { CONTACT_EMAIL, FULL_NAME, REPO_URL, at } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Terms",
@@ -32,7 +32,7 @@ export default function Terms() {
         Every answer comes from Jev, an AI model from TypeSafe AI, and is one model’s opinion. It is not a
         statement of fact about any person, not a poll, and not our view. Don’t rely on it for anything that
         matters, and don’t present it as fact.{" "}
-        <Link href="/how-it-works/scoring" className={link}>
+        <Link href={at("/how-it-works/scoring")} className={link}>
           How Jev scores
         </Link>{" "}
         explains the method.
@@ -54,7 +54,7 @@ export default function Terms() {
       <h2 className={h2}>Content and code</h2>
       <p className={body}>
         Portraits come from Wikimedia Commons under the licenses listed on the{" "}
-        <Link href="/credits" className={link}>
+        <Link href={at("/credits")} className={link}>
           credits
         </Link>{" "}
         page. The site’s code is open source under the MIT license on{" "}
@@ -75,7 +75,7 @@ export default function Terms() {
           {CONTACT_EMAIL}
         </a>
         . See also{" "}
-        <Link href="/privacy" className={link}>
+        <Link href={at("/privacy")} className={link}>
           privacy
         </Link>
         .

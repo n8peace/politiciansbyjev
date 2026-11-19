@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { politicians } from "@/lib/politicians";
-import { JEV_URL, SITE_URL, askUrl } from "@/lib/site";
+import { JEV_URL, HOME_URL, askPath, at } from "@/lib/site";
 import { GUESS_COUNT, GUESS_FLOOR, LIKELY, STRICT, SURE, TIE } from "@/lib/verdict";
 
 const TITLE = "How Jev scores a question: 100 yes/no calls and three bars";
@@ -46,15 +46,15 @@ export default function Scoring() {
     "@type": "Article",
     headline: TITLE,
     description: DESCRIPTION,
-    url: `${SITE_URL}${PATH}`,
-    mainEntityOfPage: `${SITE_URL}${PATH}`,
+    url: `${HOME_URL}${PATH}`,
+    mainEntityOfPage: `${HOME_URL}${PATH}`,
     datePublished: PUBLISHED,
     dateModified: PUBLISHED,
     author: { "@type": "Organization", name: "Banana Intelligence", url: "https://bananaintelligence.ai" },
     publisher: { "@type": "Organization", name: "Banana Intelligence", url: "https://bananaintelligence.ai" },
-    image: `${SITE_URL}/og`,
+    image: `${HOME_URL}/og`,
     about: { "@type": "SoftwareApplication", name: "Jev", applicationCategory: "AI model", url: JEV_URL },
-    isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
+    isPartOf: { "@type": "WebSite", name: "Jev!", url: HOME_URL },
   };
 
   const h2 = "mt-12 text-xl font-semibold tracking-[-0.01em] text-ink";
@@ -66,7 +66,7 @@ export default function Scoring() {
     <PageShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <p className="text-sm text-ink-soft">
-        <Link href="/how-it-works" className={link}>
+        <Link href={at("/how-it-works")} className={link}>
           How it works
         </Link>{" "}
         · Method · <time dateTime={PUBLISHED}>November 3, 2026</time>
@@ -102,7 +102,7 @@ export default function Scoring() {
       <p className={body}>
         Jev can drift a point or so if you ask the same thing twice. So each question’s answer is stored for
         30 days, and the page, the share link, the share card, and the{" "}
-        <Link href="/how-it-works#agents" className={link}>
+        <Link href={at("/how-it-works#agents")} className={link}>
           agent API
         </Link>{" "}
         all read that one copy. A link you send shows your friend the same numbers you saw.
@@ -139,14 +139,14 @@ export default function Scoring() {
       <h2 className={h2}>Two real answers</h2>
       <p className={body}>
         Read from the live site on November 3, 2026.{" "}
-        <a href={askUrl("Best president ever")} className={link}>
+        <a href={askPath("Best president ever")} className={link}>
           “Best president ever”
         </a>{" "}
         is a sure answer with a crowd behind it:
       </p>
       <Scores rows={BEST} />
       <p className={body}>
-        <a href={askUrl("Who would survive a zombie apocalypse?")} className={link}>
+        <a href={askPath("Who would survive a zombie apocalypse?")} className={link}>
           “Who would survive a zombie apocalypse?”
         </a>{" "}
         is the opposite shape. Nobody reaches {p(SURE)}, so the label is “Jev thinks so,” and Theodore
@@ -195,13 +195,13 @@ export default function Scoring() {
 
       <p className="mt-12 flex flex-wrap gap-3">
         <Link
-          href="/"
+          href={at("/")}
           className="inline-flex h-11 items-center rounded-full bg-jev px-6 text-base font-medium text-paper transition-transform duration-150 active:scale-[0.97]"
         >
           Ask Jev something
         </Link>
         <Link
-          href="/releases"
+          href={at("/releases")}
           className="inline-flex h-11 items-center rounded-full px-4 text-base font-medium text-ink-soft hover:bg-ink/5 hover:text-ink"
         >
           Release log

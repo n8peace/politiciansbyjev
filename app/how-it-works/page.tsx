@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { politicians } from "@/lib/politicians";
-import { JEV_URL, REPO_URL, SITE_URL } from "@/lib/site";
+import { HOME_URL, JEV_URL, REPO_URL, SITE_URL, at } from "@/lib/site";
 import { GUESS_FLOOR, LIKELY, STRICT, SURE } from "@/lib/verdict";
 
 const TITLE = "How Jev! works: a Jev model demo, with code";
@@ -85,9 +85,9 @@ export default function HowItWorks() {
       "@type": "TechArticle",
       headline: TITLE,
       description: DESCRIPTION,
-      url: `${SITE_URL}/how-it-works`,
+      url: `${HOME_URL}/how-it-works`,
       about: { "@type": "SoftwareApplication", name: "Jev", applicationCategory: "AI model", url: JEV_URL },
-      isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
+      isPartOf: { "@type": "WebSite", name: "Jev!", url: HOME_URL },
     },
   ];
 
@@ -116,7 +116,7 @@ export default function HowItWorks() {
         {politicians.length - current.length} historic, picked by name recognition, not importance. Among
         current figures, {count("R")} are Republicans and {count("D")} are Democrats. Portraits come from
         Wikimedia Commons (
-        <Link href="/credits" className={link}>
+        <Link href={at("/credits")} className={link}>
           credits
         </Link>
         ).
@@ -154,11 +154,11 @@ export default function HowItWorks() {
       </p>
       <p className={body}>
         The full method, with real answers and their numbers:{" "}
-        <Link href="/how-it-works/scoring" className={link}>
+        <Link href={at("/how-it-works/scoring")} className={link}>
           how Jev scores a question
         </Link>
         . What changed and when:{" "}
-        <Link href="/releases" className={link}>
+        <Link href={at("/releases")} className={link}>
           the release log
         </Link>
         .
@@ -235,7 +235,7 @@ export default function HowItWorks() {
         </li>
         <li>
           <span className="font-medium text-ink">For crawlers and agents:</span>{" "}
-          <a href="/llms.txt" className={link}>
+          <a href={`${SITE_URL}/llms.txt`} className={link}>
             llms.txt
           </a>
           .
@@ -257,7 +257,7 @@ export default function HowItWorks() {
 
       <p className="mt-12">
         <Link
-          href="/"
+          href={at("/")}
           className="inline-flex h-11 items-center rounded-full bg-jev px-6 text-base font-medium text-paper transition-transform duration-150 active:scale-[0.97]"
         >
           Ask Jev something

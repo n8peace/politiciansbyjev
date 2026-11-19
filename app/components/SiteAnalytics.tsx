@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { track } from "@vercel/analytics";
 import { Analytics, type BeforeSend } from "@vercel/analytics/next";
 import { captureRef } from "@/lib/ref";
+import { BASE } from "@/lib/site";
 
 // Cookieless page views. The address is sent without its query string, so
 // whatever a visitor typed into ?q= never leaves the browser.
@@ -22,5 +23,14 @@ export default function SiteAnalytics() {
     window.va("beforeSend", stripQuery);
     track("Ref visit", { ref });
   }, []);
-  return <Analytics beforeSend={stripQuery} />;
+  // The script and its events go through BASE, so on natepeace.com they reach
+  // this app's analytics, not natepeace.com's own /_vercel.
+  const prod = process.env.NODE_ENV === "production";
+  return (
+    <Analytics
+      scriptSrc={prod ? `${BASE}/_vercel/insights/script.js` : undefined}
+      endpoint={prod ? `${BASE}/_vercel/insights` : undefined}
+      beforeSend={stripQuery}
+    />
+  );
 }

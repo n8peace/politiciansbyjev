@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { LATEST, RELEASES } from "@/lib/releases";
-import { JEV_URL, SITE_URL } from "@/lib/site";
+import { JEV_URL, HOME_URL, at } from "@/lib/site";
 
 const TITLE = "Jev! release log: what shipped and why";
 const DESCRIPTION =
@@ -26,15 +26,15 @@ export default function Releases() {
     "@type": "Article",
     headline: TITLE,
     description: DESCRIPTION,
-    url: `${SITE_URL}${PATH}`,
-    mainEntityOfPage: `${SITE_URL}${PATH}`,
+    url: `${HOME_URL}${PATH}`,
+    mainEntityOfPage: `${HOME_URL}${PATH}`,
     datePublished: RELEASES[RELEASES.length - 1].date,
     dateModified: LATEST,
     author: { "@type": "Organization", name: "Banana Intelligence", url: "https://bananaintelligence.ai" },
     publisher: { "@type": "Organization", name: "Banana Intelligence", url: "https://bananaintelligence.ai" },
-    image: `${SITE_URL}/og`,
+    image: `${HOME_URL}/og`,
     about: { "@type": "SoftwareApplication", name: "Jev", applicationCategory: "AI model", url: JEV_URL },
-    isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
+    isPartOf: { "@type": "WebSite", name: "Jev!", url: HOME_URL },
   };
 
   const link = "text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink";
@@ -49,7 +49,7 @@ export default function Releases() {
           Jev
         </a>
         , TypeSafe AI’s decision model; this log covers the site around it. The method is on{" "}
-        <Link href="/how-it-works/scoring" className={link}>
+        <Link href={at("/how-it-works/scoring")} className={link}>
           how Jev scores a question
         </Link>
         .

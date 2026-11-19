@@ -1,9 +1,21 @@
 // One place for the site's name, address, and words, so pages, share cards,
 // the sitemap, and structured data all say the same thing.
 
-// Canonical address. Previews point here too, so search engines only ever
-// see one copy of each page.
+// The app's own domain. Agents use it: the JSON API, the MCP server,
+// /llms.txt, /og and /faces stay at its root, exactly where outside connector
+// listings point.
 export const SITE_URL = "https://politiciansbyjev.vercel.app";
+// People play it on Nate's site. natepeace.com rewrites BASE and everything
+// under it to this app, so the address bar stays on natepeace.com. Every page
+// link, image, fetch and share address carries BASE; the app also still
+// answers at its own root for agents.
+export const BASE = "/games/politicians-by-jev";
+// Canonical address for every human page. Previews point here too, so search
+// engines only ever see one copy of each page.
+const HOME_ORIGIN = "https://www.natepeace.com";
+export const HOME_URL = `${HOME_ORIGIN}${BASE}`;
+// A page path on whichever host is serving it: at("/play") -> "/games/politicians-by-jev/play".
+export const at = (path: string) => (path === "/" ? BASE : `${BASE}${path}`);
 export const SITE_NAME = "Jev!";
 // The name Google shows above search results. "Jev" alone is also the model's
 // name, so the site goes by its full name and keeps "Jev!" as the short one.
@@ -50,7 +62,8 @@ export const EXAMPLES = [
 // names next to the word "corrupt", outside the context of the toy.
 export const INDEXED = EXAMPLES.filter((q) => !/corrupt/i.test(q));
 
-export const askUrl = (q: string) => `${SITE_URL}/?q=${encodeURIComponent(q)}`;
+export const askPath = (q: string) => `${BASE}?q=${encodeURIComponent(q)}`;
+export const askUrl = (q: string) => `${HOME_ORIGIN}${askPath(q)}`;
 
 // Readable, stable URL piece for a question: "Who’s the richest?" -> "whos-the-richest".
 export const slugFor = (q: string) =>

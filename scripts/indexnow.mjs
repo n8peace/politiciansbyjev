@@ -1,10 +1,11 @@
 // Tell Bing, Yandex and the other IndexNow engines that the site changed.
 // Run after a production deploy: `node scripts/indexnow.mjs`. It reads the
 // live sitemap, so it only ever submits pages that are really there.
-// The key is public by design: engines fetch it from /<key>.txt to check
-// that we own the site.
+// The key is public by design: engines fetch it from <SITE>/<key>.txt to check
+// that we own the site. The key file sits under the game's path on
+// natepeace.com, which lets it vouch for every page under that path.
 
-const SITE = "https://politiciansbyjev.vercel.app";
+const SITE = "https://www.natepeace.com/games/politicians-by-jev";
 const KEY = "abb56ba4a971d2ffa8632efb9d9c1fa8";
 
 const xml = await (await fetch(`${SITE}/sitemap.xml`)).text();

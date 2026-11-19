@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { FULL_NAME } from "@/lib/site";
+import { FULL_NAME, at } from "@/lib/site";
 
 const TITLE = "A silly game with politicians";
 const DESCRIPTION =
@@ -54,7 +54,7 @@ export default function Play() {
 
       <p className="mt-12">
         <Link
-          href="/"
+          href={at("/")}
           className="inline-flex h-11 items-center rounded-full bg-jev px-6 text-base font-medium text-paper transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
         >
           Start playing

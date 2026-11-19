@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && seolint",
+    "build": "next build && node scripts/seo-stage.mjs && seolint",
     "start": "next start",
     "lint": "eslint"
   },

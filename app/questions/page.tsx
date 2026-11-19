@@ -3,7 +3,7 @@ import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 import { getAnswer } from "@/lib/answer";
 import { faceSrc, politicians } from "@/lib/politicians";
-import { INDEXED, SITE_URL, questionPath } from "@/lib/site";
+import { INDEXED, HOME_URL, questionPath, at } from "@/lib/site";
 import { pct, verdictFor } from "@/lib/verdict";
 
 const TITLE = "What Jev says about America’s politicians";
@@ -40,10 +40,10 @@ export default async function Questions() {
     itemListElement: rows.map(({ q, v, scores }, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: `${SITE_URL}${questionPath(q)}`,
+      url: `${HOME_URL}${questionPath(q)}`,
       name: v ? `${q}: ${byId.get(v.ids[0])!.name} (${pct(scores[v.ids[0]])})` : q,
     })),
-    isPartOf: { "@type": "WebSite", name: "Jev!", url: SITE_URL },
+    isPartOf: { "@type": "WebSite", name: "Jev!", url: HOME_URL },
   };
 
   return (
@@ -55,7 +55,7 @@ export default async function Questions() {
       <p className="mt-4 text-base leading-relaxed text-pretty text-ink-soft">
         The questions people ask most, each scored across all 100 politicians by Jev. Jev’s opinion, not
         fact.{" "}
-        <Link href="/how-it-works" className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+        <Link href={at("/how-it-works")} className="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
           How it works
         </Link>
         .
@@ -67,7 +67,7 @@ export default async function Questions() {
           const next = v ? v.ids.slice(1, 4).map((id) => byId.get(id)!) : [];
           return (
             <li key={q}>
-              <Link href={questionPath(q)} className="group flex items-center gap-4 py-5">
+              <Link href={at(questionPath(q))} className="group flex items-center gap-4 py-5">
                 {top ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { BASE } from "@/lib/site";
 
 // Closes a text page: back to wherever the visitor came from on Jev (keeping their question),
 // or home if they landed here directly. Esc does the same.
@@ -15,9 +16,10 @@ export default function Close() {
   });
 
   function close() {
-    const fromJev = document.referrer && new URL(document.referrer).origin === window.location.origin;
+    const from = document.referrer ? new URL(document.referrer) : null;
+    const fromJev = from && from.origin === window.location.origin && from.pathname.startsWith(BASE);
     if (fromJev && window.history.length > 1) router.back();
-    else router.push("/");
+    else router.push(BASE);
   }
 
   return (

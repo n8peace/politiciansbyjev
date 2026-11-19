@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL } from "@/lib/site";
+import { HOME_URL } from "@/lib/site";
 
 // Preview deployments stay out of search; only production is indexed.
 export default function robots(): MetadataRoute.Robots {
@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
   }
   return {
     rules: { userAgent: "*", allow: "/", disallow: ["/api/"] },
-    sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
+    // The pages live on natepeace.com now; this domain keeps the agent addresses.
+    sitemap: `${HOME_URL}/sitemap.xml`,
   };
 }

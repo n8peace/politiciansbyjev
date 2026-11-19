@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
-import { CONTACT_EMAIL, FULL_NAME, REPO_URL } from "@/lib/site";
+import { CONTACT_EMAIL, FULL_NAME, REPO_URL, at } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Privacy",
@@ -71,7 +71,7 @@ export default function Privacy() {
           {CONTACT_EMAIL}
         </a>
         . See also the{" "}
-        <Link href="/terms" className={link}>
+        <Link href={at("/terms")} className={link}>
           terms
         </Link>
         .

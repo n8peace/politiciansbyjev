@@ -1,16 +1,18 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo_Black, Geist } from "next/font/google";
-import { DESCRIPTION, FULL_NAME, JEV_URL, KEYWORDS, REPO_URL, SITE_NAME, SITE_URL, TITLE } from "@/lib/site";
+import { BASE, DESCRIPTION, FULL_NAME, HOME_URL, JEV_URL, KEYWORDS, REPO_URL, SITE_NAME, TITLE, at } from "@/lib/site";
 import SiteAnalytics from "@/app/components/SiteAnalytics";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const logo = Archivo_Black({ variable: "--font-archivo-black", weight: "400", subsets: ["latin"] });
 
-// Absolute URLs (share images, canonicals) resolve against production, so a
-// preview never advertises itself as the real site.
+// Absolute URLs (share images, canonicals) resolve against the public address
+// on natepeace.com, so a preview never advertises itself as the real site.
+// The base has a path, so "/og" becomes .../games/politicians-by-jev/og. The
+// home page is spelled out: joining "/" onto it would add a trailing slash.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.VERCEL_ENV ? SITE_URL : "http://localhost:3217"),
+  metadataBase: new URL(process.env.VERCEL_ENV ? HOME_URL : `http://localhost:3217${BASE}`),
   title: { default: TITLE, template: "%s · Jev!" },
   description: DESCRIPTION,
   applicationName: SITE_NAME,
@@ -18,12 +20,13 @@ export const metadata: Metadata = {
   authors: [{ name: "Banana Intelligence", url: "https://bananaintelligence.ai" }],
   creator: "Banana Intelligence",
   category: "entertainment",
-  alternates: { canonical: "/" },
+  alternates: { canonical: HOME_URL },
+  icons: { icon: { url: at("/icon"), type: "image/png", sizes: "64x64" }, apple: { url: at("/apple-icon"), sizes: "180x180" } },
   openGraph: {
     siteName: FULL_NAME,
     type: "website",
     locale: "en_US",
-    url: "/",
+    url: HOME_URL,
     title: TITLE,
     description: DESCRIPTION,
     images: [{ url: "/og", width: 1200, height: 630, alt: "Jev! America’s 100 most famous politicians. You ask. Jev picks." }],
@@ -45,7 +48,7 @@ const website = {
   "@type": "WebSite",
   name: FULL_NAME,
   alternateName: [SITE_NAME, "politiciansbyjev"],
-  url: `${SITE_URL}/`,
+  url: HOME_URL,
 };
 
 const jsonLd = {
@@ -53,7 +56,7 @@ const jsonLd = {
   "@type": ["WebApplication", "VideoGame"],
   name: FULL_NAME,
   alternateName: SITE_NAME,
-  url: SITE_URL,
+  url: HOME_URL,
   description: DESCRIPTION,
   applicationCategory: "GameApplication",
   genre: ["Party game", "Trivia", "Humor"],
